@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "./date-range-picker";
-import { Separator } from "@/components/ui/separator";
+import { DocLinks } from "./doc-modal";
 import {
   LayoutDashboard,
   Lightbulb,
@@ -93,7 +93,8 @@ export function Sidebar({ onNavigate, showDatePicker = false }: SidebarProps) {
       )}
 
       {/* Footer */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-2">
+        <DocLinks />
         <p className="text-xs text-muted-foreground">
           Review Intelligence v0.1
         </p>
