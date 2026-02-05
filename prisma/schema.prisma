@@ -1,0 +1,615 @@
+// Pick'd Review Intelligence V1 - Prisma Schema
+// Based on ARCHITECTURE_V1.md data models
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// CORE TENANCY
+// ============================================================
+
+model Organization {
+  id                 String             @id @default(uuid())
+  name               String
+  subscriptionTier   SubscriptionTier   @default(STARTER)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  settings           Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenants Tenant[]
+  users   User[]
+  themes  Theme[]
+}
+
+enum SubscriptionTier {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+model Tenant {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name     String
+  address  String?
+  city     String?
+  country  String?
+  timezone String  @default("Africa/Johannesburg")
+
+  googlePlaceId        String?
+  hellopeterBusinessId String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviewSources   ReviewSource[]
+  reviews         Review[]
+  scoreRuns       ScoreRun[]
+  themeScores     ThemeScore[]
+  fixScores       FixScore[]
+  recommendations Recommendation[]
+  tasks           Task[]
+
+  @@index([organizationId])
+}
+
+model User {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  firstName     String
+  lastName      String
+
+  role         UserRole
+  isPickdStaff Boolean  @default(false)
+  tenantAccess String[] @default([])
+
+  image     String? // NextAuth standard field
+  avatarUrl String? // Legacy field
+
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NextAuth relations
+  accounts Account[]
+  sessions Session[]
+
+  // Application relations
+  createdParameterSets   ParameterSetVersion[] @relation("CreatedBy")
+  activatedParameterSets ParameterSetVersion[] @relation("ActivatedBy")
+  triggeredScoreRuns     ScoreRun[]
+  assignedTasks          Task[]                @relation("AssignedTo")
+  createdTasks           Task[]                @relation("CreatedBy")
+  auditLogs              AuditLog[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([isPickdStaff])
+}
+
+// ============================================================
+// NEXTAUTH.JS MODELS
+// ============================================================
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  // Pick'd Internal
+  PICKD_ADMIN
+  PICKD_SUPPORT
+  // Restaurant Users
+  OWNER
+  MANAGER
+  STAFF
+}
+
+// ============================================================
+// REVIEWS & ANALYSIS
+// ============================================================
+
+model ReviewSource {
+  id       String     @id @default(uuid())
+  tenantId String
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sourceType SourceType
+  externalId String
+
+  lastSyncedAt DateTime?
+  syncStatus   SyncStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  reviews Review[]
+
+  @@unique([tenantId, sourceType])
+  @@index([tenantId])
+}
+
+enum SourceType {
+  GOOGLE
+  HELLOPETER
+  FACEBOOK
+  TRIPADVISOR
+  YELP
+  ZOMATO
+  OPENTABLE
+  WEBSITE
+  INSTAGRAM
+  TWITTER
+}
+
+enum SyncStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
+model Review {
+  id       String       @id @default(uuid())
+  tenantId String
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceId String
+  source   ReviewSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  externalReviewId String
+
+  // Core data
+  rating     Int?
+  title      String?
+  content    String
+  authorName String?
+  authorId   String?
+  reviewDate DateTime
+
+  // Response tracking
+  responseText String?
+  responseDate DateTime?
+
+  // Engagement metrics (for W_engagement)
+  likesCount   Int @default(0)
+  repliesCount Int @default(0)
+  helpfulCount Int @default(0)
+
+  // NLP analysis
+  detectedLanguage String?
+
+  // Duplicate detection
+  contentHash         String?
+  duplicateSimilarity Float?
+
+  rawData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviewThemes ReviewTheme[]
+  reviewScores ReviewScore[]
+
+  @@unique([sourceId, externalReviewId])
+  @@index([tenantId, reviewDate])
+  @@index([contentHash])
+}
+
+model Theme {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  category    ThemeCategory
+  description String?
+  keywords    String[]      @default([])
+  color       String?
+
+  isSystem Boolean @default(false)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviewThemes    ReviewTheme[]
+  themeScores     ThemeScore[]
+  fixScores       FixScore[]
+  recommendations Recommendation[]
+  tasks           Task[]
+
+  @@index([organizationId])
+  @@index([isSystem])
+}
+
+enum ThemeCategory {
+  SERVICE
+  PRODUCT
+  AMBIANCE
+  VALUE
+  CLEANLINESS
+  OTHER
+}
+
+model ReviewTheme {
+  id       String @id @default(uuid())
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  themeId  String
+  theme    Theme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  sentiment       Sentiment
+  confidenceScore Float
+  excerpt         String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, themeId])
+  @@index([themeId])
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+// ============================================================
+// SCORING ENGINE (PICK'D ADMIN ONLY)
+// ============================================================
+
+model ParameterSetVersion {
+  id            String  @id @default(uuid())
+  versionNumber Int     @default(autoincrement())
+  name          String
+  description   String?
+
+  parameters Json
+
+  status      ParameterStatus @default(DRAFT)
+  activatedAt DateTime?
+
+  activatedById String?
+  activatedBy   User?   @relation("ActivatedBy", fields: [activatedById], references: [id], onDelete: SetNull)
+  createdById   String
+  createdBy     User    @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scoreRuns ScoreRun[]
+
+  @@index([status])
+  @@index([activatedAt])
+}
+
+enum ParameterStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model ScoreRun {
+  id                 String              @id @default(uuid())
+  tenantId           String
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parameterVersionId String
+  parameterVersion   ParameterSetVersion @relation(fields: [parameterVersionId], references: [id], onDelete: Restrict)
+
+  runType ScoreRunType
+  status  ScoreRunStatus @default(PENDING)
+
+  reviewsProcessed Int @default(0)
+  themesProcessed  Int @default(0)
+
+  startedAt    DateTime?
+  completedAt  DateTime?
+  errorMessage String?
+
+  triggeredById String?
+  triggeredBy   User?   @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  reviewScores ReviewScore[]
+  themeScores  ThemeScore[]
+  fixScores    FixScore[]
+
+  @@index([tenantId, createdAt])
+  @@index([status])
+}
+
+enum ScoreRunType {
+  SCHEDULED
+  MANUAL
+  RECALCULATION
+  PARAMETER_CHANGE
+}
+
+enum ScoreRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model ReviewScore {
+  id         String   @id @default(uuid())
+  reviewId   String
+  review     Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  scoreRunId String
+  scoreRun   ScoreRun @relation(fields: [scoreRunId], references: [id], onDelete: Cascade)
+
+  // Computed values
+  baseSentiment    Float // S_r: [-1, +1]
+  timeWeight       Float // W_time: (0, 1]
+  sourceWeight     Float // W_source: [0.6, 1.4]
+  engagementWeight Float // W_engagement: [1, cap]
+  confidenceWeight Float // W_confidence: [0, 1]
+  weightedImpact   Float // W_r: final score
+
+  components Json // Full breakdown for audit
+
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, scoreRunId])
+  @@index([scoreRunId])
+}
+
+model ThemeScore {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  themeId    String
+  theme      Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  scoreRunId String
+  scoreRun   ScoreRun @relation(fields: [scoreRunId], references: [id], onDelete: Cascade)
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  mentionCount  Int
+  positiveCount Int
+  neutralCount  Int
+  negativeCount Int
+
+  sumWeightedImpact    Float // ΣW_r
+  sumAbsWeightedImpact Float // Σ|W_r|
+
+  themeSentiment Float // S_theme: [-1, +1]
+  themeScore010  Float // Score 0-10
+  severity       Float // Severity ranking
+
+  trendDirection TrendDirection?
+
+  createdAt DateTime @default(now())
+
+  @@unique([themeId, scoreRunId])
+  @@index([tenantId, scoreRunId])
+  @@index([severity(sort: Desc)])
+}
+
+enum TrendDirection {
+  IMPROVING
+  STABLE
+  DECLINING
+}
+
+model FixScore {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  themeId    String
+  theme      Theme     @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  taskId     String?
+  task       Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  scoreRunId String
+  scoreRun   ScoreRun  @relation(fields: [scoreRunId], references: [id], onDelete: Cascade)
+
+  baselineScore Float // S_before
+  currentScore  Float // S_after
+  deltaS        Float // ΔS: [-2, +2]
+
+  reviewCountPre  Int
+  reviewCountPost Int
+
+  confidence      Float // [0, 1]
+  confidenceLevel ConfidenceLevel
+
+  fixScore Float // FixScore formula result
+
+  measurementStart DateTime
+  measurementEnd   DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, themeId])
+  @@index([taskId])
+}
+
+enum ConfidenceLevel {
+  INSUFFICIENT
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ============================================================
+// RECOMMENDATIONS & TASKS
+// ============================================================
+
+model Recommendation {
+  id       String  @id @default(uuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  themeId  String?
+  theme    Theme?  @relation(fields: [themeId], references: [id], onDelete: SetNull)
+
+  severity RecommendationSeverity
+  status   RecommendationStatus   @default(OPEN)
+
+  title             String
+  description       String?
+  suggestedActions  Json     @default("[]")
+  evidenceReviewIds String[] @default([])
+  estimatedImpact   String?
+
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
+
+  @@index([tenantId, status])
+  @@index([severity])
+}
+
+enum RecommendationSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum RecommendationStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+model Task {
+  id               String          @id @default(uuid())
+  tenantId         String
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recommendationId String?
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+  themeId          String?
+  theme            Theme?          @relation(fields: [themeId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+
+  priority TaskPriority @default(MEDIUM)
+  status   TaskStatus   @default(PENDING)
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  dueDate     DateTime?
+  completedAt DateTime?
+  impactNotes String?
+
+  createdById String
+  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fixScores FixScore[]
+
+  @@index([tenantId, status])
+  @@index([assignedToId])
+}
+
+enum TaskPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  actorEmail String
+  actorRole  UserRole
+
+  action       String
+  resourceType String
+  resourceId   String?
+
+  oldValue Json?
+  newValue Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+}
