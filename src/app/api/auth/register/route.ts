@@ -56,12 +56,25 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Generate slug from organization name
+    const generateSlug = (name: string): string => {
+      return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 50);
+    };
+
+    const baseSlug = generateSlug(organizationName);
+    const uniqueSuffix = Date.now().toString(36).slice(-4);
+
     // Create organization and user in a transaction
     const result = await db.$transaction(async (tx) => {
       // Create organization
       const organization = await tx.organization.create({
         data: {
           name: organizationName,
+          slug: `${baseSlug}-${uniqueSuffix}`,
           subscriptionTier: 'STARTER',
           subscriptionStatus: 'ACTIVE',
         },
@@ -71,6 +84,7 @@ export async function POST(request: NextRequest) {
       const tenant = await tx.tenant.create({
         data: {
           organizationId: organization.id,
+          slug: 'main',
           name: `${organizationName} - Main`,
           isActive: true,
         },

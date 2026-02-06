@@ -1,5 +1,5 @@
 // Pick'd Review Intelligence V1 - Prisma Schema
-// Based on ARCHITECTURE_V1.md data models
+// Full production schema with all V1 features
 
 generator client {
   provider = "prisma-client-js"
@@ -16,6 +16,7 @@ datasource db {
 model Organization {
   id                 String             @id @default(uuid())
   name               String
+  slug               String             @unique
   subscriptionTier   SubscriptionTier   @default(STARTER)
   subscriptionStatus SubscriptionStatus @default(ACTIVE)
   settings           Json?
@@ -23,9 +24,14 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenants Tenant[]
-  users   User[]
-  themes  Theme[]
+  tenants     Tenant[]
+  users       User[]
+  themes      Theme[]
+  memberships Membership[]
+  ruleSets    RuleSet[]
+
+  @@index([slug])
+  @@index([subscriptionStatus])
 }
 
 enum SubscriptionTier {
@@ -40,35 +46,51 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+// Tenant = Branch in multi-location restaurant context
 model Tenant {
   id             String       @id @default(uuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   name     String
+  slug     String
   address  String?
   city     String?
+  region   String?
   country  String?
   timezone String  @default("Africa/Johannesburg")
 
+  // External identifiers for review sources
   googlePlaceId        String?
   hellopeterBusinessId String?
+  tripadvisorId        String?
+  facebookPageId       String?
 
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  reviewSources   ReviewSource[]
+  // Relations
+  connectors      Connector[]
+  ingestionRuns   IngestionRun[]
   reviews         Review[]
   scoreRuns       ScoreRun[]
   themeScores     ThemeScore[]
   fixScores       FixScore[]
   recommendations Recommendation[]
   tasks           Task[]
+  branchAccess    BranchAccess[]
 
+  @@unique([organizationId, slug])
   @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@index([googlePlaceId])
 }
+
+// ============================================================
+// USER & ACCESS MANAGEMENT
+// ============================================================
 
 model User {
   id             String        @id @default(uuid())
@@ -83,10 +105,10 @@ model User {
 
   role         UserRole
   isPickdStaff Boolean  @default(false)
-  tenantAccess String[] @default([])
+  tenantAccess String[] @default([]) // Legacy: array of tenant IDs
 
-  image     String? // NextAuth standard field
-  avatarUrl String? // Legacy field
+  image     String?
+  avatarUrl String?
 
   isActive    Boolean   @default(true)
   lastLoginAt DateTime?
@@ -98,9 +120,14 @@ model User {
   accounts Account[]
   sessions Session[]
 
+  // Membership relations
+  memberships Membership[]
+
   // Application relations
   createdParameterSets   ParameterSetVersion[] @relation("CreatedBy")
   activatedParameterSets ParameterSetVersion[] @relation("ActivatedBy")
+  createdRuleSets        RuleSetVersion[]      @relation("RuleSetCreatedBy")
+  activatedRuleSets      RuleSetVersion[]      @relation("RuleSetActivatedBy")
   triggeredScoreRuns     ScoreRun[]
   assignedTasks          Task[]                @relation("AssignedTo")
   createdTasks           Task[]                @relation("CreatedBy")
@@ -109,6 +136,62 @@ model User {
   @@index([organizationId])
   @@index([email])
   @@index([isPickdStaff])
+  @@index([role])
+}
+
+// Membership: User ↔ Organization ↔ Role mapping
+model Membership {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  role     MemberRole @default(MEMBER)
+  isActive Boolean    @default(true)
+
+  invitedAt  DateTime?
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branchAccess BranchAccess[]
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+// BranchAccess: Which branches/tenants a member can access
+model BranchAccess {
+  id           String     @id @default(uuid())
+  membershipId String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  accessLevel AccessLevel @default(READ)
+
+  createdAt DateTime @default(now())
+
+  @@unique([membershipId, tenantId])
+  @@index([tenantId])
+  @@index([membershipId])
+}
+
+enum AccessLevel {
+  READ
+  WRITE
+  ADMIN
 }
 
 // ============================================================
@@ -165,26 +248,45 @@ enum UserRole {
 }
 
 // ============================================================
-// REVIEWS & ANALYSIS
+// CONNECTORS & INGESTION
 // ============================================================
 
-model ReviewSource {
-  id       String     @id @default(uuid())
+// Connector: Configuration for each review source
+model Connector {
+  id       String @id @default(uuid())
   tenantId String
-  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   sourceType SourceType
-  externalId String
+  name       String
 
-  lastSyncedAt DateTime?
-  syncStatus   SyncStatus @default(ACTIVE)
+  // External identifiers
+  externalId     String?
+  externalUrl    String?
+  externalConfig Json? // Source-specific config (API keys, OAuth tokens, etc.)
+
+  // Sync configuration
+  syncFrequency SyncFrequency @default(DAILY)
+  lastSyncedAt  DateTime?
+  nextSyncAt    DateTime?
+
+  // Status
+  status       ConnectorStatus @default(PENDING)
+  errorMessage String?
+  errorCount   Int             @default(0)
+
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  reviews Review[]
+  ingestionRuns IngestionRun[]
+  reviews       Review[]
 
   @@unique([tenantId, sourceType])
   @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([status, nextSyncAt])
 }
 
 enum SourceType {
@@ -200,23 +302,120 @@ enum SourceType {
   TWITTER
 }
 
-enum SyncStatus {
+enum SyncFrequency {
+  HOURLY
+  DAILY
+  WEEKLY
+  MANUAL
+}
+
+enum ConnectorStatus {
+  PENDING
   ACTIVE
   PAUSED
   ERROR
+  DISCONNECTED
 }
 
+// IngestionRun: Track each data ingestion job
+model IngestionRun {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connectorId String
+  connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  runType IngestionRunType @default(SCHEDULED)
+  status  IngestionStatus  @default(PENDING)
+
+  // Stats
+  reviewsFetched  Int @default(0)
+  reviewsCreated  Int @default(0)
+  reviewsUpdated  Int @default(0)
+  reviewsSkipped  Int @default(0)
+  duplicatesFound Int @default(0)
+  errorCount      Int @default(0)
+
+  // Timing
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Error tracking
+  errorMessage String?
+
+  // API pagination state (for resumption)
+  paginationState Json?
+
+  createdAt DateTime @default(now())
+
+  errors IngestionError[]
+
+  @@index([tenantId, createdAt])
+  @@index([connectorId, createdAt])
+  @@index([status])
+}
+
+enum IngestionRunType {
+  SCHEDULED
+  MANUAL
+  BACKFILL
+  RETRY
+}
+
+enum IngestionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+// IngestionError: Track individual errors during ingestion
+model IngestionError {
+  id             String       @id @default(uuid())
+  ingestionRunId String
+  ingestionRun   IngestionRun @relation(fields: [ingestionRunId], references: [id], onDelete: Cascade)
+
+  errorType    IngestionErrorType
+  errorCode    String?
+  errorMessage String
+  context      Json? // Review data that failed, API response, etc.
+
+  isRetryable Boolean @default(true)
+  retryCount  Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([ingestionRunId])
+  @@index([errorType])
+}
+
+enum IngestionErrorType {
+  API_ERROR
+  RATE_LIMIT
+  AUTH_FAILURE
+  PARSE_ERROR
+  VALIDATION_ERROR
+  DUPLICATE
+  TIMEOUT
+  UNKNOWN
+}
+
+// ============================================================
+// REVIEWS & ANALYSIS
+// ============================================================
+
 model Review {
-  id       String       @id @default(uuid())
-  tenantId String
-  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sourceId String
-  source   ReviewSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connectorId String
+  connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
 
   externalReviewId String
 
   // Core data
-  rating     Int?
+  rating     Int? // 1-5 (optional, some sources don't have ratings)
   title      String?
   content    String
   authorName String?
@@ -226,6 +425,7 @@ model Review {
   // Response tracking
   responseText String?
   responseDate DateTime?
+  respondedBy  String?
 
   // Engagement metrics (for W_engagement)
   likesCount   Int @default(0)
@@ -234,10 +434,13 @@ model Review {
 
   // NLP analysis
   detectedLanguage String?
+  sentimentRaw     Float? // Raw sentiment before weighting
 
-  // Duplicate detection
+  // Quality & deduplication
   contentHash         String?
+  textLength          Int?
   duplicateSimilarity Float?
+  qualityFlags        String[] @default([]) // e.g., ["short", "vague", "likely_fake"]
 
   rawData Json?
 
@@ -247,9 +450,12 @@ model Review {
   reviewThemes ReviewTheme[]
   reviewScores ReviewScore[]
 
-  @@unique([sourceId, externalReviewId])
+  @@unique([connectorId, externalReviewId])
   @@index([tenantId, reviewDate])
+  @@index([tenantId, reviewDate, rating])
+  @@index([connectorId, reviewDate])
   @@index([contentHash])
+  @@index([detectedLanguage])
 }
 
 model Theme {
@@ -262,9 +468,15 @@ model Theme {
   description String?
   keywords    String[]      @default([])
   color       String?
+  icon        String?
+
+  // Matching configuration
+  matchingRules Json? // Advanced theme matching rules
 
   isSystem Boolean @default(false)
   isActive Boolean @default(true)
+
+  sortOrder Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -275,8 +487,10 @@ model Theme {
   recommendations Recommendation[]
   tasks           Task[]
 
+  @@unique([organizationId, name])
   @@index([organizationId])
   @@index([isSystem])
+  @@index([category])
 }
 
 enum ThemeCategory {
@@ -285,6 +499,7 @@ enum ThemeCategory {
   AMBIANCE
   VALUE
   CLEANLINESS
+  LOCATION
   OTHER
 }
 
@@ -298,11 +513,13 @@ model ReviewTheme {
   sentiment       Sentiment
   confidenceScore Float
   excerpt         String?
+  keywords        String[] @default([]) // Matched keywords
 
   createdAt DateTime @default(now())
 
   @@unique([reviewId, themeId])
   @@index([themeId])
+  @@index([reviewId, sentiment])
 }
 
 enum Sentiment {
@@ -321,7 +538,7 @@ model ParameterSetVersion {
   name          String
   description   String?
 
-  parameters Json
+  parameters Json // See ParameterSet interface
 
   status      ParameterStatus @default(DRAFT)
   activatedAt DateTime?
@@ -346,6 +563,68 @@ enum ParameterStatus {
   ARCHIVED
 }
 
+// RuleSet: Configuration for recommendation generation
+model RuleSet {
+  id             String       @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  category    RuleSetCategory
+
+  isSystem Boolean @default(false)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions RuleSetVersion[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([isSystem])
+  @@index([category])
+}
+
+enum RuleSetCategory {
+  RECOMMENDATION
+  ALERT
+  SCORING
+  AUTOMATION
+}
+
+model RuleSetVersion {
+  id            String  @id @default(uuid())
+  ruleSetId     String
+  ruleSet       RuleSet @relation(fields: [ruleSetId], references: [id], onDelete: Cascade)
+  versionNumber Int     @default(autoincrement())
+  name          String?
+  description   String?
+
+  rules Json // Rule definitions
+
+  status      RuleStatus @default(DRAFT)
+  activatedAt DateTime?
+
+  activatedById String?
+  activatedBy   User?   @relation("RuleSetActivatedBy", fields: [activatedById], references: [id], onDelete: SetNull)
+  createdById   String
+  createdBy     User    @relation("RuleSetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ruleSetId, status])
+  @@index([activatedAt])
+}
+
+enum RuleStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
 model ScoreRun {
   id                 String              @id @default(uuid())
   tenantId           String
@@ -356,11 +635,17 @@ model ScoreRun {
   runType ScoreRunType
   status  ScoreRunStatus @default(PENDING)
 
+  // Date range for this run
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  // Stats
   reviewsProcessed Int @default(0)
   themesProcessed  Int @default(0)
 
   startedAt    DateTime?
   completedAt  DateTime?
+  durationMs   Int?
   errorMessage String?
 
   triggeredById String?
@@ -373,6 +658,7 @@ model ScoreRun {
   fixScores    FixScore[]
 
   @@index([tenantId, createdAt])
+  @@index([tenantId, periodStart, periodEnd])
   @@index([status])
 }
 
@@ -438,11 +724,13 @@ model ThemeScore {
   severity       Float // Severity ranking
 
   trendDirection TrendDirection?
+  trendMagnitude Float? // How much it changed
 
   createdAt DateTime @default(now())
 
   @@unique([themeId, scoreRunId])
   @@index([tenantId, scoreRunId])
+  @@index([tenantId, periodStart, periodEnd])
   @@index([severity(sort: Desc)])
 }
 
@@ -481,6 +769,7 @@ model FixScore {
   createdAt DateTime @default(now())
 
   @@index([tenantId, themeId])
+  @@index([tenantId, measurementStart, measurementEnd])
   @@index([taskId])
 }
 
@@ -504,12 +793,18 @@ model Recommendation {
 
   severity RecommendationSeverity
   status   RecommendationStatus   @default(OPEN)
+  category RecommendationCategory @default(IMPROVEMENT)
 
   title             String
   description       String?
   suggestedActions  Json     @default("[]")
   evidenceReviewIds String[] @default([])
   estimatedImpact   String?
+
+  // Auto-generated metadata
+  triggerReason    String?
+  triggerThreshold Float?
+  autoGenerated    Boolean @default(false)
 
   resolvedAt DateTime?
 
@@ -519,7 +814,9 @@ model Recommendation {
   tasks Task[]
 
   @@index([tenantId, status])
+  @@index([tenantId, createdAt])
   @@index([severity])
+  @@index([category])
 }
 
 enum RecommendationSeverity {
@@ -536,6 +833,13 @@ enum RecommendationStatus {
   DISMISSED
 }
 
+enum RecommendationCategory {
+  URGENT_ISSUE
+  IMPROVEMENT
+  OPPORTUNITY
+  MAINTENANCE
+}
+
 model Task {
   id               String          @id @default(uuid())
   tenantId         String
@@ -547,6 +851,7 @@ model Task {
 
   title       String
   description String?
+  notes       String?
 
   priority TaskPriority @default(MEDIUM)
   status   TaskStatus   @default(PENDING)
@@ -555,6 +860,7 @@ model Task {
   assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   dueDate     DateTime?
+  startedAt   DateTime?
   completedAt DateTime?
   impactNotes String?
 
@@ -567,7 +873,10 @@ model Task {
   fixScores FixScore[]
 
   @@index([tenantId, status])
+  @@index([tenantId, dueDate])
+  @@index([tenantId, createdAt])
   @@index([assignedToId])
+  @@index([priority])
 }
 
 enum TaskPriority {
@@ -596,20 +905,45 @@ model AuditLog {
   actorEmail String
   actorRole  UserRole
 
-  action       String
+  // What happened
+  action       AuditAction
   resourceType String
   resourceId   String?
 
+  // Context
+  tenantId       String?
+  organizationId String?
+
+  // Change details
   oldValue Json?
   newValue Json?
+  metadata Json? // Additional context
 
+  // Request info
   ipAddress String?
   userAgent String?
+  requestId String?
 
   createdAt DateTime @default(now())
 
   @@index([actorId])
   @@index([action])
-  @@index([resourceType])
+  @@index([resourceType, resourceId])
+  @@index([tenantId, createdAt])
+  @@index([organizationId, createdAt])
   @@index([createdAt])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+  ACTIVATE
+  DEACTIVATE
+  TRIGGER
+  ACCESS
 }
