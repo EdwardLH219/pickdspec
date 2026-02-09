@@ -23,12 +23,13 @@ Set these in Vercel Dashboard → Settings → Environment Variables:
 # Database (get from your PostgreSQL provider)
 DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
 
-# NextAuth.js
-NEXTAUTH_SECRET="generate-with: openssl rand -base64 32"
-NEXTAUTH_URL="https://your-app.vercel.app"
+# NextAuth.js v5 (AUTH_SECRET is the v5 name, NEXTAUTH_SECRET also works)
+AUTH_SECRET="generate-with: openssl rand -base64 32"
+AUTH_URL="https://your-app.vercel.app"
 
 # Encryption key for connector credentials (32 bytes hex)
-ENCRYPTION_KEY="generate-with: openssl rand -hex 32"
+# Optional in testing - will derive from AUTH_SECRET if not set
+CONNECTOR_ENCRYPTION_KEY="generate-with: openssl rand -hex 32"
 ```
 
 ### Optional (for full functionality)
