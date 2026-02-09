@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:worker": "tsx watch scripts/run-worker.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:worker\"",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "start:worker": "tsx scripts/run-worker.ts",
     "lint": "eslint",
