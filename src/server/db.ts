@@ -2,27 +2,44 @@
  * Database Client (Prisma)
  * 
  * This module exports a singleton Prisma client instance for use
- * throughout the application. It handles connection pooling and
- * prevents multiple client instances in development.
+ * throughout the application. Uses the pg adapter for Prisma 7+.
  */
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { logger } from '@/lib/logger';
+
+const { Pool } = pg;
 
 declare global {
   // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
+  // eslint-disable-next-line no-var
+  var pgPool: pg.Pool | undefined;
 }
 
 /**
- * Create a new Prisma client
+ * Get or create a PostgreSQL connection pool
+ */
+function getPool(): pg.Pool {
+  if (!globalThis.pgPool) {
+    globalThis.pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 10, // Maximum pool size
+    });
+  }
+  return globalThis.pgPool;
+}
+
+/**
+ * Create a new Prisma client with pg adapter (required for Prisma 7+)
  */
 function createPrismaClient(): PrismaClient {
-  return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' 
-      ? ['query', 'error', 'warn'] 
-      : ['error'],
-  });
+  const pool = getPool();
+  const adapter = new PrismaPg(pool);
+  
+  return new PrismaClient({ adapter });
 }
 
 /**
@@ -36,7 +53,7 @@ export const db = globalThis.prisma ?? createPrismaClient();
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = db;
-  logger.debug('Prisma client initialized');
+  logger.debug('Prisma client initialized with pg adapter');
 }
 
 /**
