@@ -7,38 +7,21 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 import { logger } from '@/lib/logger';
 
 declare global {
   // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
-  // eslint-disable-next-line no-var
-  var pool: Pool | undefined;
 }
 
 /**
- * Get or create a PostgreSQL connection pool
- */
-function getPool(): Pool {
-  if (!globalThis.pool) {
-    globalThis.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-  }
-  return globalThis.pool;
-}
-
-/**
- * Create a new Prisma client with PostgreSQL adapter
+ * Create a new Prisma client
  */
 function createPrismaClient(): PrismaClient {
-  const pool = getPool();
-  const adapter = new PrismaPg(pool);
-  
   return new PrismaClient({
-    adapter,
+    log: process.env.NODE_ENV === 'development' 
+      ? ['query', 'error', 'warn'] 
+      : ['error'],
   });
 }
 
@@ -53,7 +36,7 @@ export const db = globalThis.prisma ?? createPrismaClient();
 // Prevent multiple instances in development
 if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = db;
-  logger.debug('Prisma client initialized with PostgreSQL adapter');
+  logger.debug('Prisma client initialized');
 }
 
 /**
