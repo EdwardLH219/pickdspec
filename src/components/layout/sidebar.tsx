@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  Database,
 } from "lucide-react";
 
 const navItems = [
@@ -43,6 +44,15 @@ const navItems = [
     title: "Account",
     href: "/account",
     icon: Settings,
+  },
+];
+
+// Owner/Manager nav items
+const ownerNavItems = [
+  {
+    title: "Data Sources",
+    href: "/data-sources",
+    icon: Database,
   },
 ];
 
@@ -97,9 +107,21 @@ export function Sidebar({ onNavigate, showDatePicker = false }: SidebarProps) {
   };
 
   // Combine nav items based on user role
-  const allNavItems = user?.isPickdStaff 
-    ? [...navItems, ...adminNavItems]
-    : navItems;
+  const allNavItems = (() => {
+    let items = [...navItems];
+    
+    // Add owner/manager items
+    if (user?.role === 'OWNER' || user?.role === 'MANAGER' || user?.isPickdStaff) {
+      items = [...items, ...ownerNavItems];
+    }
+    
+    // Add admin items
+    if (user?.isPickdStaff) {
+      items = [...items, ...adminNavItems];
+    }
+    
+    return items;
+  })();
 
   return (
     <div className="flex h-full flex-col">

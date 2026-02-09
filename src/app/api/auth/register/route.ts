@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/server/db';
 import { z } from 'zod';
+import { rateLimit, RateLimiters } from '@/server/security/rate-limit';
 
 /**
  * Registration request schema
@@ -26,6 +27,10 @@ const registerSchema = z.object({
  * Register a new user with their organization
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 registrations per minute per IP
+  const rateLimitResult = rateLimit(request, 'register', RateLimiters.auth);
+  if (rateLimitResult) return rateLimitResult;
+
   try {
     const body = await request.json();
     

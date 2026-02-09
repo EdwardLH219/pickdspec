@@ -8,7 +8,8 @@ import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Settings, Users, Database, Activity } from 'lucide-react';
+import { Shield, Settings, Users, Activity, Upload, Scale, Search, ClipboardList } from 'lucide-react';
+import Link from 'next/link';
 
 export default async function AdminPage() {
   const session = await auth();
@@ -31,26 +32,133 @@ export default async function AdminPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Parameter Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Parameters
-            </CardTitle>
-            <CardDescription>
-              Manage scoring algorithm parameters
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Create, edit, and activate parameter set versions that control how review scores are calculated.
-            </p>
-            <Badge variant="outline" className="mt-4">Coming Soon</Badge>
-          </CardContent>
-        </Card>
+        <Link href="/admin/parameters" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Parameters
+              </CardTitle>
+              <CardDescription>
+                Manage scoring algorithm parameters
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Create, edit, and activate parameter set versions that control how review scores are calculated.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Rules Management */}
+        <Link href="/admin/rules" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Scale className="h-5 w-5" />
+                Rules
+              </CardTitle>
+              <CardDescription>
+                Manage scoring rules
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Edit JSON rules for confidence scoring and data sufficiency with full versioning.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Score Runs */}
+        <Link href="/admin/runs" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Score Runs
+              </CardTitle>
+              <CardDescription>
+                Monitor scoring jobs
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                View score run history, trigger manual recalculations, and monitor job status.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Data Ingestion */}
+        <Link href="/admin/ingestion" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Data Ingestion
+              </CardTitle>
+              <CardDescription>
+                Manage connectors and import data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Run ingestion jobs, upload review data, and monitor connector status across all tenants.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Audit Explorer */}
+        <Link href="/admin/audit" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Score Explorer
+              </CardTitle>
+              <CardDescription>
+                Inspect score breakdowns
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Deep dive into review scores with full weight breakdowns and reason codes.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Audit Logs */}
+        <Link href="/admin/audit-logs" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5" />
+                Audit Logs
+              </CardTitle>
+              <CardDescription>
+                System activity history
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Track all admin actions: parameter changes, score runs, connector edits, and more.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* Tenant Management */}
-        <Card>
+        <Card className="opacity-75">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -63,44 +171,6 @@ export default async function AdminPage() {
           <CardContent>
             <p className="text-sm text-muted-foreground">
               View and manage all tenants, organizations, and their subscription status.
-            </p>
-            <Badge variant="outline" className="mt-4">Coming Soon</Badge>
-          </CardContent>
-        </Card>
-
-        {/* Score Runs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Score Runs
-            </CardTitle>
-            <CardDescription>
-              Monitor scoring jobs
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              View score run history, trigger manual recalculations, and monitor job status.
-            </p>
-            <Badge variant="outline" className="mt-4">Coming Soon</Badge>
-          </CardContent>
-        </Card>
-
-        {/* Audit Logs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Audit Logs
-            </CardTitle>
-            <CardDescription>
-              System activity history
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              View audit trail of all system actions including parameter changes and score runs.
             </p>
             <Badge variant="outline" className="mt-4">Coming Soon</Badge>
           </CardContent>
