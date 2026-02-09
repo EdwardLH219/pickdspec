@@ -29,7 +29,7 @@ export async function checkDbConnection(): Promise<boolean> {
     await db.$queryRaw`SELECT 1`;
     return true;
   } catch (error) {
-    logger.error({ error }, 'Database connection check failed');
+    console.error('Database connection check failed:', error);
     return false;
   }
 }
@@ -39,7 +39,6 @@ export async function checkDbConnection(): Promise<boolean> {
  */
 export async function disconnectDb(): Promise<void> {
   await db.$disconnect();
-  logger.info('Database connection closed');
 }
 
 export default db;
