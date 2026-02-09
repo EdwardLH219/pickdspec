@@ -15,21 +15,11 @@
  */
 
 import { PrismaClient, UserRole, ThemeCategory, Sentiment, MemberRole, AccessLevel, SourceType, ConnectorStatus, SyncFrequency, TaskPriority, TaskStatus, RecommendationSeverity, RecommendationStatus, RecommendationCategory, ParameterStatus, AuditAction } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config';
 
-// Create PostgreSQL connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// Create adapter and Prisma client
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({
-  adapter,
-});
+// Create Prisma client
+const prisma = new PrismaClient();
 
 /**
  * Hash a password
