@@ -131,7 +131,7 @@ export interface Task {
 // USERS
 // ============================================
 
-export type UserRole = "admin" | "manager" | "viewer";
+export type UserRole = "owner" | "admin" | "manager" | "viewer";
 
 export interface User {
   id: string;

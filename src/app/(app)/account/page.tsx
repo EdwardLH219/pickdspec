@@ -95,12 +95,13 @@ export default function AccountPage() {
     isActive: t.isActive,
   })) || [];
 
-  // Map database roles to UI roles
-  const mapRole = (dbRole: string): string => {
-    const roleMap: Record<string, string> = {
+  // Map database roles to UI roles (UserRole type is "owner" | "admin" | "manager" | "viewer")
+  type UserRoleType = "owner" | "admin" | "manager" | "viewer";
+  const mapRole = (dbRole: string): UserRoleType => {
+    const roleMap: Record<string, UserRoleType> = {
       'OWNER': 'owner',
       'MANAGER': 'manager',
-      'STAFF': 'staff',
+      'STAFF': 'viewer',
       'PICKD_ADMIN': 'admin',
       'PICKD_SUPPORT': 'admin',
     };
@@ -113,9 +114,7 @@ export default function AccountPage() {
     name: `${u.firstName} ${u.lastName}`,
     email: u.email,
     role: mapRole(u.role),
-    branchIds: [],
-    status: u.isActive ? 'active' : 'inactive',
-    lastActive: u.createdAt,
+    branchIds: [] as string[],
     avatar: undefined,
     isActive: u.isActive,
   })) || [];
