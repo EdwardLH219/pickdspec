@@ -113,9 +113,9 @@ export async function GET() {
         
         if (score) {
           branchScores[tenant.id] = {
-            score: score.score010,
-            sentiment: score.avgSentiment,
-            mentions: score.mentionCount,
+            score: score.themeScore010 ?? 0,
+            sentiment: score.themeSentiment ?? 0,
+            mentions: score.mentionCount ?? 0,
           };
         } else {
           branchScores[tenant.id] = {
@@ -138,15 +138,15 @@ export async function GET() {
     const branchSummaries = tenants.map(tenant => {
       const tenantScores = themeScores.filter(ts => ts.scoreRun.tenantId === tenant.id);
       const avgScore = tenantScores.length > 0
-        ? tenantScores.reduce((sum, ts) => sum + ts.score010, 0) / tenantScores.length
+        ? tenantScores.reduce((sum, ts) => sum + (ts.themeScore010 ?? 0), 0) / tenantScores.length
         : 0;
-      const totalMentions = tenantScores.reduce((sum, ts) => sum + ts.mentionCount, 0);
+      const totalMentions = tenantScores.reduce((sum, ts) => sum + (ts.mentionCount ?? 0), 0);
       
       return {
         id: tenant.id,
         name: tenant.name,
-        avgScore: Math.round(avgScore * 10) / 10,
-        totalMentions,
+        avgScore: Math.round((avgScore || 0) * 10) / 10,
+        totalMentions: totalMentions || 0,
         themeCount: tenantScores.length,
       };
     });
