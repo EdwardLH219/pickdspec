@@ -172,10 +172,11 @@ export function SentimentTrendChart({ data, completedTasks = [] }: SentimentTren
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                 }}
-                formatter={(value: number, name: string) => {
-                  if (name === 'sentimentScore') return [value.toFixed(1), 'Sentiment Score'];
-                  if (name === 'avgRating') return [value?.toFixed(1) ?? 'N/A', 'Avg Rating'];
-                  return [value, name];
+                formatter={(value, name) => {
+                  const numValue = typeof value === 'number' ? value : 0;
+                  if (name === 'sentimentScore') return [numValue.toFixed(1), 'Sentiment Score'];
+                  if (name === 'avgRating') return [numValue.toFixed(1), 'Avg Rating'];
+                  return [numValue, name];
                 }}
                 labelFormatter={(label) => {
                   const weekTasks = tasksInRange.filter(t => t.matchedWeek === label);
@@ -291,7 +292,7 @@ export function ReviewVolumeChart({ data }: ReviewVolumeChartProps) {
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
                 }}
-                formatter={(value: number) => [value, 'Reviews']}
+                formatter={(value) => [value ?? 0, 'Reviews']}
               />
               <Area
                 type="monotone"
@@ -359,7 +360,7 @@ export function SentimentPieChart({ positive, neutral, negative }: SentimentDist
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
                 }}
-                formatter={(value: number) => [`${value} reviews`, '']}
+                formatter={(value) => [`${value ?? 0} reviews`, '']}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -425,7 +426,7 @@ export function RatingDistributionChart({ data }: RatingDistributionChartProps) 
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
                 }}
-                formatter={(value: number) => [`${value} reviews`, '']}
+                formatter={(value) => [`${value ?? 0} reviews`, '']}
               />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                 {data.map((entry, index) => (
@@ -496,8 +497,9 @@ export function ThemeRadarChart({ data }: ThemeRadarChartProps) {
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
                 }}
-                formatter={(value: number, name: string, props: { payload: { fullName: string; score010: number } }) => {
-                  return [`Score: ${props.payload.score010.toFixed(1)}/10`, props.payload.fullName];
+                formatter={(value, name, props) => {
+                  const payload = props?.payload as { fullName?: string; score010?: number } | undefined;
+                  return [`Score: ${payload?.score010?.toFixed(1) ?? '0'}/10`, payload?.fullName ?? ''];
                 }}
               />
               <Radar
@@ -748,10 +750,13 @@ export function SourceDistributionChart({ data }: SourceDistributionChartProps) 
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
                 }}
-                formatter={(value: number, name: string, props: { payload: { percentage: number } }) => [
-                  `${value} reviews (${props.payload.percentage}%)`,
-                  ''
-                ]}
+                formatter={(value, name, props) => {
+                  const payload = props?.payload as { percentage?: number } | undefined;
+                  return [
+                    `${value ?? 0} reviews (${payload?.percentage ?? 0}%)`,
+                    ''
+                  ];
+                }}
               />
             </PieChart>
           </ResponsiveContainer>

@@ -802,7 +802,7 @@ function TasksContent() {
                                     ticks={[0, 2.5, 5, 7.5, 10]}
                                   />
                                   <Tooltip 
-                                    formatter={(value: number) => [value.toFixed(1), 'Score']}
+                                    formatter={(value) => [typeof value === 'number' ? value.toFixed(1) : '0', 'Score']}
                                     labelFormatter={(label) => `Date: ${label}`}
                                   />
                                   {/* Task completion reference line */}
