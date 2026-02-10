@@ -42,10 +42,10 @@ interface GeneratedRecommendation {
 // ============================================================
 
 const SEVERITY_THRESHOLDS = {
-  CRITICAL: { maxScore: 3.0, minMentions: 5 },   // Score < 3 with 5+ mentions
-  HIGH: { maxScore: 4.5, minMentions: 3 },       // Score < 4.5 with 3+ mentions
-  MEDIUM: { maxScore: 5.5, minMentions: 2 },     // Score < 5.5 with 2+ mentions
-  LOW: { maxScore: 6.5, minMentions: 1 },        // Score < 6.5 with any mentions
+  CRITICAL: { maxScore: 5.0, minMentions: 10 },  // Score < 5 with 10+ mentions - serious issue
+  HIGH: { maxScore: 6.5, minMentions: 5 },       // Score < 6.5 with 5+ mentions - needs attention
+  MEDIUM: { maxScore: 7.5, minMentions: 3 },     // Score < 7.5 with 3+ mentions - room for improvement
+  LOW: { maxScore: 8.5, minMentions: 2 },        // Score < 8.5 with 2+ mentions - minor opportunity
 };
 
 // Action templates by theme category
