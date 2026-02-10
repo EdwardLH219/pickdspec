@@ -19,6 +19,7 @@ import { audit } from '@/server/audit/service';
 // Import connectors to register them
 import '@/server/ingestion/connectors/csv-connector';
 import '@/server/ingestion/connectors/google-connector';
+import '@/server/ingestion/connectors/outscraper-connector';
 
 type RouteParams = { params: Promise<{ id: string }> };
 

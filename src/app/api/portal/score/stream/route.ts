@@ -41,8 +41,19 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let isClosed = false;
+      
       const send = (data: object) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        if (!isClosed) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        }
+      };
+      
+      const closeController = () => {
+        if (!isClosed) {
+          isClosed = true;
+          controller.close();
+        }
       };
 
       try {
@@ -61,7 +72,7 @@ export async function POST(request: NextRequest) {
         const paramVersion = await getActiveParameterVersion();
         if (!paramVersion) {
           send({ type: 'error', message: '❌ No active parameter set found. Please configure parameters first.' });
-          controller.close();
+          closeController();
           return;
         }
         const params = paramVersion.parameters;
@@ -82,7 +93,7 @@ export async function POST(request: NextRequest) {
 
         if (reviews.length === 0) {
           send({ type: 'complete', message: '✅ No reviews to process', results: { reviewsProcessed: 0, themesExtracted: 0, themesProcessed: 0 } });
-          controller.close();
+          closeController();
           return;
         }
 
@@ -487,7 +498,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         send({ type: 'error', message: `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}` });
       } finally {
-        controller.close();
+        closeController();
       }
     },
   });

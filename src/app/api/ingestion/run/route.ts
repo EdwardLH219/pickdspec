@@ -20,6 +20,7 @@ import { logger } from '@/lib/logger';
 // Import connectors to register them
 import '@/server/ingestion/connectors/csv-connector';
 import '@/server/ingestion/connectors/google-connector';
+import '@/server/ingestion/connectors/outscraper-connector';
 
 /**
  * Run ingestion request schema

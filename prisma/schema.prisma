@@ -292,6 +292,7 @@ model Connector {
 
 enum SourceType {
   GOOGLE
+  GOOGLE_OUTSCRAPER
   HELLOPETER
   FACEBOOK
   TRIPADVISOR

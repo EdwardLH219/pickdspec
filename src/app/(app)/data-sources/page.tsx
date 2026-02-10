@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Database, RefreshCw, CheckCircle2, AlertCircle, Clock, Play } from 'lucide-react';
 import { DataSourceActions } from './components/data-source-actions';
 import { RunScoringButton } from './components/run-scoring-button';
+import { InitializeConnectorsButton } from './components/initialize-connectors-button';
 
 export default async function DataSourcesPage() {
   const session = await auth();
@@ -77,11 +78,17 @@ export default async function DataSourcesPage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-8">
               <Database className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground text-center">
+              <p className="text-muted-foreground text-center mb-4">
                 No data sources connected yet.
-                <br />
-                Contact your administrator to set up review imports.
               </p>
+              {isOwner && tenantAccess.tenantIds.length > 0 && (
+                <InitializeConnectorsButton tenantId={tenantAccess.tenantIds[0]} />
+              )}
+              {!isOwner && (
+                <p className="text-sm text-muted-foreground">
+                  Contact your administrator to set up review imports.
+                </p>
+              )}
             </CardContent>
           </Card>
         ) : (

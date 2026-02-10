@@ -27,6 +27,7 @@ import { logger } from '@/lib/logger';
 // Import connectors to register them
 import './connectors/csv-connector';
 import './connectors/google-connector';
+import './connectors/outscraper-connector';
 
 // ============================================================
 // INGESTION SERVICE

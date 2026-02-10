@@ -20,6 +20,7 @@ import { audit } from '@/server/audit/service';
 // Import connectors to register them
 import '@/server/ingestion/connectors/csv-connector';
 import '@/server/ingestion/connectors/google-connector';
+import '@/server/ingestion/connectors/outscraper-connector';
 
 /**
  * GET /api/ingestion/connectors

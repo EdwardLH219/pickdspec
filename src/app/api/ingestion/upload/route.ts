@@ -20,6 +20,7 @@ import type { ConnectorConfig } from '@/server/ingestion/types';
 // Import connectors to register them
 import '@/server/ingestion/connectors/csv-connector';
 import '@/server/ingestion/connectors/google-connector';
+import '@/server/ingestion/connectors/outscraper-connector';
 
 // Max file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;

@@ -3,21 +3,24 @@
 /**
  * Registration Page
  * 
- * Allows new users to create an account with their organization.
+ * Allows new users to sign up with their restaurant/business.
+ * Creates an organization, tenant, and owner user account.
  */
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, User, Building, AlertCircle } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Building2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function RegisterPage() {
-  const { register, loading } = useAuth();
+  const router = useRouter();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -27,55 +30,74 @@ export default function RegisterPage() {
     confirmPassword: '',
     organizationName: '',
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
     setError(null);
+  };
+
+  const validateForm = (): string | null => {
+    if (formData.password.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (formData.password !== formData.confirmPassword) {
+      return 'Passwords do not match';
+    }
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setError(null);
-
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      const result = await register({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password,
-        organizationName: formData.organizationName,
+      // Register the user
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+          organizationName: formData.organizationName,
+        }),
       });
 
-      if (!result.success) {
-        setError(result.error || 'Registration failed');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Registration failed');
+        return;
       }
+
+      // Auto-login after successful registration
+      const loginResult = await login(formData.email, formData.password);
+      
+      if (loginResult.success) {
+        // Redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        // Registration succeeded but login failed - redirect to login page
+        router.push('/login?registered=true');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
@@ -93,20 +115,40 @@ export default function RegisterPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Create an account</CardTitle>
             <CardDescription className="text-center">
-              Start your 14-day free trial. No credit card required.
+              Get started with your free trial
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {/* Error Alert */}
             {error && (
-              <Alert variant="destructive" className="mb-4">
+              <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              {/* Restaurant/Business Name */}
+              <div className="space-y-2">
+                <Label htmlFor="organizationName">Restaurant / Business Name</Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="organizationName"
+                    name="organizationName"
+                    type="text"
+                    placeholder="My Restaurant"
+                    value={formData.organizationName}
+                    onChange={handleChange}
+                    className="pl-9"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              {/* Name Fields */}
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
                   <div className="relative">
@@ -114,6 +156,7 @@ export default function RegisterPage() {
                     <Input
                       id="firstName"
                       name="firstName"
+                      type="text"
                       placeholder="John"
                       value={formData.firstName}
                       onChange={handleChange}
@@ -128,6 +171,7 @@ export default function RegisterPage() {
                   <Input
                     id="lastName"
                     name="lastName"
+                    type="text"
                     placeholder="Doe"
                     value={formData.lastName}
                     onChange={handleChange}
@@ -137,23 +181,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="organizationName">Organization Name</Label>
-                <div className="relative">
-                  <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="organizationName"
-                    name="organizationName"
-                    placeholder="Your Restaurant Group"
-                    value={formData.organizationName}
-                    onChange={handleChange}
-                    className="pl-9"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
+              {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -172,6 +200,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              {/* Password */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -186,6 +215,7 @@ export default function RegisterPage() {
                     className="pl-9"
                     required
                     disabled={isSubmitting}
+                    minLength={8}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -193,6 +223,7 @@ export default function RegisterPage() {
                 </p>
               </div>
 
+              {/* Confirm Password */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
@@ -209,6 +240,12 @@ export default function RegisterPage() {
                     disabled={isSubmitting}
                   />
                 </div>
+                {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Passwords match
+                  </p>
+                )}
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
@@ -223,10 +260,10 @@ export default function RegisterPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter>
-            <p className="text-sm text-center text-muted-foreground w-full">
+          <CardFooter className="flex flex-col space-y-4">
+            <p className="text-sm text-center text-muted-foreground">
               Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/login" className="text-primary hover:underline font-medium">
                 Sign in
               </Link>
             </p>
@@ -234,7 +271,7 @@ export default function RegisterPage() {
         </Card>
 
         <p className="text-xs text-center text-muted-foreground">
-          By creating an account, you agree to our{' '}
+          By signing up, you agree to our{' '}
           <Link href="/terms" className="hover:underline">
             Terms of Service
           </Link>{' '}

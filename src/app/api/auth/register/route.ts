@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/server/db';
 import { z } from 'zod';
+import { SourceType, SyncFrequency, ConnectorStatus } from '@prisma/client';
 import { rateLimit, RateLimiters } from '@/server/security/rate-limit';
 
 /**
@@ -93,6 +94,36 @@ export async function POST(request: NextRequest) {
           name: `${organizationName} - Main`,
           isActive: true,
         },
+      });
+
+      // Create default connectors for all source types
+      const connectorConfigs: Array<{
+        sourceType: SourceType;
+        name: string;
+        syncFrequency: SyncFrequency;
+      }> = [
+        { sourceType: SourceType.GOOGLE, name: 'Google Reviews', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.GOOGLE_OUTSCRAPER, name: 'Google (Outscraper)', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.HELLOPETER, name: 'HelloPeter', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.FACEBOOK, name: 'Facebook', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.TRIPADVISOR, name: 'TripAdvisor', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.YELP, name: 'Yelp', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.ZOMATO, name: 'Zomato', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.OPENTABLE, name: 'OpenTable', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.WEBSITE, name: 'CSV Import', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.INSTAGRAM, name: 'Instagram', syncFrequency: SyncFrequency.MANUAL },
+        { sourceType: SourceType.TWITTER, name: 'Twitter/X', syncFrequency: SyncFrequency.MANUAL },
+      ];
+
+      await tx.connector.createMany({
+        data: connectorConfigs.map(config => ({
+          tenantId: tenant.id,
+          sourceType: config.sourceType,
+          name: config.name,
+          syncFrequency: config.syncFrequency,
+          status: ConnectorStatus.PENDING,
+          isActive: true,
+        })),
       });
 
       // Create user as organization owner

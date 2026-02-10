@@ -32,6 +32,7 @@ export const DEFAULT_PARAMETERS: ParameterSet = {
   source: {
     weights: {
       google: 1.20,
+      google_outscraper: 1.20, // Same as Google (same source, different ingestion method)
       hellopeter: 1.15,
       tripadvisor: 1.00,
       facebook: 0.90,
@@ -49,6 +50,7 @@ export const DEFAULT_PARAMETERS: ParameterSet = {
   engagement: {
     enabled_by_source: {
       google: true,
+      google_outscraper: true, // Outscraper provides likes data
       facebook: true,
       tripadvisor: true,
       hellopeter: false,
@@ -106,6 +108,7 @@ export const PARAMETER_BOUNDS: Record<string, ParameterBounds> = {
   
   // Source
   'source.weights.google': { min: 0.6, max: 1.4 },
+  'source.weights.google_outscraper': { min: 0.6, max: 1.4 },
   'source.weights.hellopeter': { min: 0.6, max: 1.4 },
   'source.weights.tripadvisor': { min: 0.6, max: 1.4 },
   'source.weights.facebook': { min: 0.6, max: 1.4 },
