@@ -8,7 +8,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const tenantId = request.nextUrl.searchParams.get('tenantId') || session.user.tenantId;
+  const tenantId = request.nextUrl.searchParams.get('tenantId') || session.user.tenantAccess?.[0];
+  
+  if (!tenantId) {
+    return NextResponse.json({ error: 'No tenant access' }, { status: 403 });
+  }
   
   try {
     // Get all themes

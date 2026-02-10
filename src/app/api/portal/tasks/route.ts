@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   // Parse query params
   const { searchParams } = new URL(request.url);
-  const tenantId = searchParams.get('tenantId') || session.user.tenantId;
+  const tenantId = searchParams.get('tenantId') || session.user.tenantAccess?.[0];
   
   if (!tenantId) {
     return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const tenantId = body.tenantId || session.user.tenantId;
+    const tenantId = body.tenantId || session.user.tenantAccess?.[0];
     
     if (!tenantId) {
       return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const tenantId = searchParams.get('tenantId') || session.user.tenantId;
+  const tenantId = searchParams.get('tenantId') || session.user.tenantAccess?.[0];
 
   if (!tenantId) {
     return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
