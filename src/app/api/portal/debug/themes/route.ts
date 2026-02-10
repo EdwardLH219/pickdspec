@@ -76,13 +76,13 @@ export async function GET(request: NextRequest) {
         themeId: t.themeId,
         themeName: t.theme?.name,
         completedAt: t.completedAt,
-        hasFixScore: !!t.fixScore,
-        fixScore: t.fixScore ? {
-          deltaS: t.fixScore.deltaS,
-          confidence: t.fixScore.confidence,
-          fixScore: t.fixScore.fixScore,
-          reviewCountPre: t.fixScore.reviewCountPre,
-          reviewCountPost: t.fixScore.reviewCountPost,
+        hasFixScore: t.fixScores.length > 0,
+        fixScore: t.fixScores[0] ? {
+          deltaS: t.fixScores[0].deltaS,
+          confidence: t.fixScores[0].confidence,
+          fixScore: t.fixScores[0].fixScore,
+          reviewCountPre: t.fixScores[0].reviewCountPre,
+          reviewCountPost: t.fixScores[0].reviewCountPost,
         } : null,
       })),
     });
