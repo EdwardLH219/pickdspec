@@ -109,6 +109,7 @@ export default function AccountPage() {
 
   const users = data?.teamMembers.map(u => ({
     id: u.id,
+    organizationId: data.organization?.id || '',
     name: `${u.firstName} ${u.lastName}`,
     email: u.email,
     role: mapRole(u.role),
