@@ -88,6 +88,7 @@ export default function AccountPage() {
 
   const branches = data?.tenants.map(t => ({
     id: t.id,
+    organizationId: data.organization?.id || '',
     name: t.name,
     address: '',
     city: '',
