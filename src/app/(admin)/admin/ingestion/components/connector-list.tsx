@@ -210,17 +210,18 @@ export function ConnectorList() {
       formData.append('file', uploadFile);
       formData.append('connectorId', selectedConnector.id);
 
-      // Add basic column mappings for CSV
-      if (selectedConnector.sourceType === 'WEBSITE') {
-        const mappings = {
-          content: 'Review',
-          reviewDate: 'Date',
-          rating: 'Rating',
-          authorName: 'Author',
-          dateFormat: 'YYYY-MM-DD',
-        };
-        formData.append('columnMappings', JSON.stringify(mappings));
-      }
+              // Add column mappings for CSV uploads (works for all connector types)
+              const fileExtension = uploadFile.name.toLowerCase().split('.').pop();
+              if (fileExtension === 'csv' || fileExtension === 'txt') {
+                const mappings = {
+                  content: 'content',
+                  reviewDate: 'date',
+                  rating: 'rating',
+                  authorName: 'author',
+                  dateFormat: 'YYYY-MM-DD',
+                };
+                formData.append('columnMappings', JSON.stringify(mappings));
+              }
 
       const response = await fetch('/api/ingestion/upload', {
         method: 'POST',

@@ -10,9 +10,11 @@
 export {
   analyzeSentiment,
   analyzeSentimentBatch,
+  analyzeSentimentWithThemes,
   getSentimentProvider,
   getSentimentModelVersion,
   initializeSentimentProvider,
+  isUsingAIProvider,
   StubSentimentProvider,
   OpenAISentimentProvider,
 } from './sentiment';
@@ -20,6 +22,8 @@ export {
 export type {
   SentimentRequest,
   SentimentResponse,
+  SentimentWithThemes,
+  ExtractedTheme,
   ISentimentProvider,
   OpenAIProviderConfig,
 } from './sentiment';

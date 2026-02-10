@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Pick'd Review Intelligence",
+  title: "Pick't Review Intelligence",
   description: "Back-office review intelligence dashboard",
 };
 

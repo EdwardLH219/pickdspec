@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "./date-range-picker";
-import { DocLinks } from "./doc-modal";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +130,7 @@ export function Sidebar({ onNavigate, showDatePicker = false }: SidebarProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
             P
           </div>
-          <span className="font-semibold text-lg">Pick&apos;d</span>
+          <span className="font-semibold text-lg">Pick&apos;t</span>
         </Link>
       </div>
 
@@ -151,7 +150,7 @@ export function Sidebar({ onNavigate, showDatePicker = false }: SidebarProps) {
           </p>
           {user.isPickdStaff && (
             <p className="text-xs text-primary font-medium mt-1">
-              Pick&apos;d Staff
+              Pick&apos;t Staff
             </p>
           )}
         </div>
@@ -199,7 +198,6 @@ export function Sidebar({ onNavigate, showDatePicker = false }: SidebarProps) {
           <LogOut className="h-4 w-4 mr-2" />
           Sign Out
         </Button>
-        <DocLinks />
         <p className="text-xs text-muted-foreground">
           Review Intelligence v1.0
         </p>

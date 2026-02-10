@@ -139,15 +139,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // For CSV connector, ensure we have column mappings
-    if (connector.sourceType === 'WEBSITE' && !config.columnMappings) {
-      return NextResponse.json(
-        { 
-          error: 'Column mappings required for CSV import',
-          hint: 'Provide columnMappings with at least "content" and "reviewDate" fields',
-        },
-        { status: 400 }
-      );
+    // For CSV files, ensure we have column mappings
+    const fileExtension = file.name.toLowerCase().split('.').pop();
+    if ((fileExtension === 'csv' || fileExtension === 'txt') && !config.columnMappings) {
+      // Set default column mappings for CSV files (lowercase to match demo CSVs)
+      config.columnMappings = {
+        content: 'content',
+        reviewDate: 'date',
+        rating: 'rating',
+        authorName: 'author',
+        dateFormat: 'YYYY-MM-DD',
+      };
     }
 
     // Convert file to buffer
@@ -172,6 +174,7 @@ export async function POST(request: NextRequest) {
         filename: file.name,
         mimeType: file.type,
       },
+      configOverrides: config, // Pass the config with column mappings
     });
 
     return NextResponse.json({

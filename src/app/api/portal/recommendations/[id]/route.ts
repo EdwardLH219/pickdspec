@@ -1,28 +1,21 @@
 /**
- * Single Task API
+ * Single Recommendation API
  * 
- * GET: Get task details (with FixScore history)
- * PATCH: Update task (triggers FixScore on completion)
- * DELETE: Delete task
+ * GET: Get recommendation details
+ * PATCH: Update recommendation status
+ * DELETE: Delete recommendation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
 import { hasTenantAccess } from '@/server/auth/rbac';
-import { getTaskById, updateTask, deleteTask } from '@/server/recommendations';
+import { updateRecommendationStatus } from '@/server/recommendations';
 import { db } from '@/server/db';
-import { TaskStatus, TaskPriority } from '@prisma/client';
+import { RecommendationStatus } from '@prisma/client';
 import { z } from 'zod';
 
-const updateTaskSchema = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
-  notes: z.string().optional(),
-  priority: z.nativeEnum(TaskPriority).optional(),
-  status: z.nativeEnum(TaskStatus).optional(),
-  assignedToId: z.string().nullable().optional(),
-  dueDate: z.string().datetime().nullable().optional().transform(v => v ? new Date(v) : v),
-  impactNotes: z.string().optional(),
+const updateSchema = z.object({
+  status: z.nativeEnum(RecommendationStatus),
 });
 
 export async function GET(
@@ -36,17 +29,29 @@ export async function GET(
 
   const { id } = await params;
   
-  const task = await getTaskById(id);
+  const recommendation = await db.recommendation.findUnique({
+    where: { id },
+    include: {
+      theme: { select: { id: true, name: true, category: true } },
+      tasks: {
+        include: {
+          assignedTo: { select: { id: true, firstName: true, lastName: true } },
+          fixScores: { orderBy: { createdAt: 'desc' }, take: 1 },
+        },
+      },
+    },
+  });
 
-  if (!task) {
-    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  if (!recommendation) {
+    return NextResponse.json({ error: 'Recommendation not found' }, { status: 404 });
   }
 
-  if (!hasTenantAccess(session.user, task.tenantId, 'read')) {
+  // Check tenant access
+  if (!hasTenantAccess(session.user, recommendation.tenantId, 'read')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  return NextResponse.json(task);
+  return NextResponse.json(recommendation);
 }
 
 export async function PATCH(
@@ -60,14 +65,14 @@ export async function PATCH(
 
   const { id } = await params;
 
-  // Check task exists and tenant access
-  const existing = await db.task.findUnique({
+  // First get the recommendation to check tenant
+  const existing = await db.recommendation.findUnique({
     where: { id },
     select: { tenantId: true },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Recommendation not found' }, { status: 404 });
   }
 
   if (!hasTenantAccess(session.user, existing.tenantId, 'write')) {
@@ -76,17 +81,21 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const data = updateTaskSchema.parse(body);
+    const data = updateSchema.parse(body);
 
-    const task = await updateTask(id, data, session.user.id);
+    const recommendation = await updateRecommendationStatus(
+      id,
+      data.status,
+      session.user.id
+    );
 
-    return NextResponse.json(task);
+    return NextResponse.json(recommendation);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
     }
-    console.error('Error updating task:', error);
-    return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+    console.error('Error updating recommendation:', error);
+    return NextResponse.json({ error: 'Failed to update recommendation' }, { status: 500 });
   }
 }
 
@@ -101,20 +110,20 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const existing = await db.task.findUnique({
+  const existing = await db.recommendation.findUnique({
     where: { id },
     select: { tenantId: true },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Recommendation not found' }, { status: 404 });
   }
 
   if (!hasTenantAccess(session.user, existing.tenantId, 'write')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  await deleteTask(id, session.user.id);
+  await db.recommendation.delete({ where: { id } });
 
   return NextResponse.json({ success: true });
 }

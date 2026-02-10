@@ -47,6 +47,18 @@ import {
   HelpCircle,
   Info,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Area,
+  ComposedChart,
+} from "recharts";
 
 type StatusFilter = "all" | "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
@@ -124,6 +136,36 @@ function TasksContent() {
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Recalculate impact
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
+  // Timeline data for FixScore chart
+  const [timelineData, setTimelineData] = useState<{
+    timeline: Array<{ date: string; score: number; reviewCount: number; period: string }>;
+    completionDate: string;
+    stats: { preReviews: number; postReviews: number; preAvgScore: number | null; postAvgScore: number | null };
+  } | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+
+  // Fetch timeline data when viewing a completed task
+  const fetchTimeline = async (taskId: string) => {
+    setTimelineLoading(true);
+    setTimelineData(null);
+    try {
+      const res = await fetch(`/api/portal/tasks/${taskId}/timeline`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.timeline && data.timeline.length > 0) {
+          setTimelineData(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch timeline:', e);
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
 
   // Fetch tasks
   useEffect(() => {
@@ -220,6 +262,41 @@ function TasksContent() {
       toast.error('Failed to create task');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  // Recalculate impact for a completed task
+  const recalculateImpact = async (taskId: string) => {
+    setIsRecalculating(true);
+    try {
+      const res = await fetch(`/api/portal/tasks/${taskId}/recalculate`, {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        toast.success('Impact recalculated', {
+          description: `FixScore: ${data.fixScore.score.toFixed(2)}, ΔS: ${data.fixScore.deltaS.toFixed(3)}`,
+        });
+        // Refresh tasks to show updated FixScore
+        const refreshRes = await fetch(`/api/portal/tasks?tenantId=${selectedTenantId}`);
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          setTasks(refreshData.tasks || []);
+          // Update selected task if it's the one we recalculated
+          const updatedTask = refreshData.tasks?.find((t: Task) => t.id === taskId);
+          if (updatedTask) {
+            setSelectedTask(updatedTask);
+          }
+        }
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to recalculate impact');
+      }
+    } catch {
+      toast.error('Failed to recalculate impact');
+    } finally {
+      setIsRecalculating(false);
     }
   };
 
@@ -478,9 +555,11 @@ function TasksContent() {
               <TableRow>
                 <TableHead>Task</TableHead>
                 <TableHead>Theme</TableHead>
+                <TableHead>Assigned</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Due Date</TableHead>
+                <TableHead>Completed</TableHead>
                 <TableHead>Impact</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -489,20 +568,25 @@ function TasksContent() {
               {tasks.map((task) => (
                 <TableRow key={task.id} className={task.isOverdue ? 'bg-red-50' : ''}>
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{task.title}</p>
-                      {task.assignee && (
-                        <p className="text-xs text-muted-foreground">
-                          Assigned to: {task.assignee.name}
-                        </p>
-                      )}
-                    </div>
+                    <p className="font-medium">{task.title}</p>
                   </TableCell>
                   <TableCell>
                     {task.themeName ? (
                       <Badge variant="outline">{task.themeName}</Badge>
                     ) : (
                       <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {task.assignee ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+                          {task.assignee.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm">{task.assignee.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Unassigned</span>
                     )}
                   </TableCell>
                   <TableCell>{getStatusBadge(task.status)}</TableCell>
@@ -515,6 +599,13 @@ function TasksContent() {
                       </div>
                     ) : (
                       <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {task.status === 'COMPLETED' && task.completedAt ? (
+                      <span>{new Date(task.completedAt).toLocaleDateString()}</span>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -537,6 +628,10 @@ function TasksContent() {
                         onClick={() => {
                           setSelectedTask(task);
                           setDetailOpen(true);
+                          // Fetch timeline for completed tasks with fixScore
+                          if (task.status === 'COMPLETED' && task.themeId) {
+                            fetchTimeline(task.id);
+                          }
                         }}
                       >
                         <Eye className="h-4 w-4" />
@@ -584,9 +679,23 @@ function TasksContent() {
               {selectedTask.status === 'COMPLETED' && (
                 <Card className="bg-muted/50">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Impact Measurement
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Impact Measurement
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => recalculateImpact(selectedTask.id)}
+                        disabled={isRecalculating}
+                      >
+                        {isRecalculating ? (
+                          <Clock className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <span className="text-xs">Recalculate</span>
+                        )}
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -596,7 +705,7 @@ function TasksContent() {
                         <span>Calculating impact score...</span>
                       </div>
                     ) : selectedTask.fixScore.status === 'insufficient_data' ? (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-start gap-2 text-sm text-yellow-700 bg-yellow-50 p-3 rounded-lg">
                           <HelpCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                           <div>
@@ -606,30 +715,175 @@ function TasksContent() {
                             </p>
                           </div>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                          Import more reviews and run scoring, then click Recalculate.
+                        </p>
                       </div>
                     ) : selectedTask.fixScore.status === 'available' ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Fix Score</span>
-                          <span className={`text-lg font-bold ${
-                            (selectedTask.fixScore.score ?? 0) > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {selectedTask.fixScore.score?.toFixed(2)}
-                          </span>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Fix Score</span>
+                            <span className={`text-lg font-bold ${
+                              (selectedTask.fixScore.score ?? 0) > 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {selectedTask.fixScore.score?.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Sentiment Change (ΔS)</span>
+                            <span className={`font-medium ${
+                              (selectedTask.fixScore.deltaS ?? 0) > 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {(selectedTask.fixScore.deltaS ?? 0) > 0 ? '+' : ''}
+                              {selectedTask.fixScore.deltaS?.toFixed(3)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Confidence</span>
+                            <Badge variant="outline">{selectedTask.fixScore.confidence}</Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Sentiment Change (ΔS)</span>
-                          <span className={`font-medium ${
-                            (selectedTask.fixScore.deltaS ?? 0) > 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {(selectedTask.fixScore.deltaS ?? 0) > 0 ? '+' : ''}
-                            {selectedTask.fixScore.deltaS?.toFixed(3)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Confidence</span>
-                          <Badge variant="outline">{selectedTask.fixScore.confidence}</Badge>
-                        </div>
+                        
+                        {/* Timeline Chart */}
+                        {timelineLoading ? (
+                          <div className="h-40 flex items-center justify-center">
+                            <Clock className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : timelineData && timelineData.timeline.length > 0 ? (
+                          <div className="mt-4">
+                            <div className="text-xs text-muted-foreground mb-2">
+                              Sentiment Timeline (Score 0-10)
+                            </div>
+                            <div className="h-44">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart 
+                                  data={(() => {
+                                    // Inject completion date marker if not already in timeline
+                                    const timeline = [...timelineData.timeline];
+                                    const completionDate = timelineData.completionDate;
+                                    const hasCompletionDate = timeline.some(d => d.date === completionDate);
+                                    if (!hasCompletionDate) {
+                                      // Insert completion date at the right position
+                                      const insertIndex = timeline.findIndex(d => d.date > completionDate);
+                                      const marker = { date: completionDate, score: null as unknown as number, reviewCount: 0, period: 'marker' };
+                                      if (insertIndex === -1) {
+                                        timeline.push(marker);
+                                      } else {
+                                        timeline.splice(insertIndex, 0, marker);
+                                      }
+                                    }
+                                    return timeline;
+                                  })()}
+                                  margin={{ top: 20, right: 10, left: -20, bottom: 0 }}
+                                >
+                                  <defs>
+                                    <linearGradient id="preGradient" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="postGradient" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                  <XAxis 
+                                    dataKey="date" 
+                                    tick={{ fontSize: 10 }}
+                                    tickFormatter={(value) => {
+                                      const d = new Date(value);
+                                      return `${d.getMonth()+1}/${d.getDate()}`;
+                                    }}
+                                  />
+                                  <YAxis 
+                                    domain={[0, 10]} 
+                                    tick={{ fontSize: 10 }}
+                                    ticks={[0, 2.5, 5, 7.5, 10]}
+                                  />
+                                  <Tooltip 
+                                    formatter={(value: number) => [value.toFixed(1), 'Score']}
+                                    labelFormatter={(label) => `Date: ${label}`}
+                                  />
+                                  {/* Task completion reference line */}
+                                  <ReferenceLine 
+                                    x={timelineData.completionDate} 
+                                    stroke="#6366f1" 
+                                    strokeWidth={2}
+                                    strokeDasharray="5 5"
+                                    label={{ 
+                                      value: '⬇ Task Completed', 
+                                      position: 'insideTopRight', 
+                                      fontSize: 9,
+                                      fill: '#6366f1',
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                  {/* Average lines */}
+                                  {timelineData.stats.preAvgScore && (
+                                    <ReferenceLine 
+                                      y={timelineData.stats.preAvgScore} 
+                                      stroke="#f59e0b" 
+                                      strokeDasharray="3 3"
+                                    />
+                                  )}
+                                  {timelineData.stats.postAvgScore && (
+                                    <ReferenceLine 
+                                      y={timelineData.stats.postAvgScore} 
+                                      stroke="#22c55e" 
+                                      strokeDasharray="3 3"
+                                    />
+                                  )}
+                                  {/* Area fill based on period */}
+                                  <Area
+                                    type="monotone"
+                                    dataKey="score"
+                                    fill="url(#postGradient)"
+                                    stroke="none"
+                                  />
+                                  {/* Line */}
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="score" 
+                                    stroke="#3b82f6"
+                                    strokeWidth={2}
+                                    connectNulls
+                                    dot={(props) => {
+                                      const { cx, cy, payload } = props;
+                                      // Don't show dot for the completion marker
+                                      if (payload.period === 'marker' || !payload.score) {
+                                        return <circle cx={0} cy={0} r={0} />;
+                                      }
+                                      const color = payload.period === 'pre' ? '#f59e0b' : '#22c55e';
+                                      return (
+                                        <circle 
+                                          cx={cx} 
+                                          cy={cy} 
+                                          r={4} 
+                                          fill={color}
+                                          stroke="#fff"
+                                          strokeWidth={1}
+                                        />
+                                      );
+                                    }}
+                                  />
+                                </ComposedChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                Pre: {timelineData.stats.preReviews} reviews
+                                {timelineData.stats.preAvgScore && ` (avg: ${timelineData.stats.preAvgScore.toFixed(1)})`}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 rounded-full bg-green-500" />
+                                Post: {timelineData.stats.postReviews} reviews
+                                {timelineData.stats.postAvgScore && ` (avg: ${timelineData.stats.postAvgScore.toFixed(1)})`}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </CardContent>

@@ -47,6 +47,7 @@ import {
 interface UsersTabProps {
   initialUsers: User[];
   branches: Branch[];
+  currentUserId?: string;
 }
 
 interface InviteFormData {
@@ -56,7 +57,14 @@ interface InviteFormData {
   branchIds: string[];
 }
 
-const roleConfig: Record<UserRole, { label: string; icon: React.ReactNode; description: string; color: string }> = {
+// Map database roles to display config
+const roleConfig: Record<string, { label: string; icon: React.ReactNode; description: string; color: string }> = {
+  owner: {
+    label: "Owner",
+    icon: <Shield className="h-4 w-4" />,
+    description: "Organization owner with full control",
+    color: "bg-amber-100 text-amber-700",
+  },
   admin: {
     label: "Admin",
     icon: <Shield className="h-4 w-4" />,
@@ -69,6 +77,12 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ReactNode; descr
     description: "Can manage assigned branches and view reports",
     color: "bg-blue-100 text-blue-700",
   },
+  staff: {
+    label: "Staff",
+    icon: <Eye className="h-4 w-4" />,
+    description: "Read-only access to dashboards and reports",
+    color: "bg-gray-100 text-gray-700",
+  },
   viewer: {
     label: "Viewer",
     icon: <Eye className="h-4 w-4" />,
@@ -77,7 +91,10 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ReactNode; descr
   },
 };
 
-export function UsersTab({ initialUsers, branches }: UsersTabProps) {
+// Roles available for selection (excludes system roles)
+const selectableRoles = ["admin", "manager", "viewer"] as const;
+
+export function UsersTab({ initialUsers, branches, currentUserId }: UsersTabProps) {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -187,8 +204,9 @@ export function UsersTab({ initialUsers, branches }: UsersTabProps) {
               </TableHeader>
               <TableBody>
                 {users.map((user) => {
-                  const role = roleConfig[user.role];
-                  const isCurrentUser = user.id === "user-1"; // John Doe is current user
+                  const userRole = user.role?.toLowerCase() || 'viewer';
+                  const role = roleConfig[userRole] || roleConfig.viewer;
+                  const isCurrentUser = currentUserId ? user.id === currentUserId : false;
 
                   return (
                     <TableRow key={user.id}>
@@ -215,27 +233,45 @@ export function UsersTab({ initialUsers, branches }: UsersTabProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value) =>
-                            handleRoleChange(user.id, value as UserRole)
-                          }
-                          disabled={isCurrentUser}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(roleConfig).map(([key, config]) => (
-                              <SelectItem key={key} value={key}>
+                        {/* Show role badge for owner/special roles, select for others */}
+                        {userRole === 'owner' ? (
+                          <Badge className={role.color}>
+                            <div className="flex items-center gap-1">
+                              {role.icon}
+                              {role.label}
+                            </div>
+                          </Badge>
+                        ) : (
+                          <Select
+                            value={userRole}
+                            onValueChange={(value) =>
+                              handleRoleChange(user.id, value as UserRole)
+                            }
+                            disabled={isCurrentUser}
+                          >
+                            <SelectTrigger className="w-[130px]">
+                              <SelectValue>
                                 <div className="flex items-center gap-2">
-                                  {config.icon}
-                                  {config.label}
+                                  {role.icon}
+                                  {role.label}
                                 </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {selectableRoles.map((key) => {
+                                const config = roleConfig[key];
+                                return (
+                                  <SelectItem key={key} value={key}>
+                                    <div className="flex items-center gap-2">
+                                      {config.icon}
+                                      {config.label}
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>
                         {user.branchIds.length === 0 ? (
@@ -299,19 +335,22 @@ export function UsersTab({ initialUsers, branches }: UsersTabProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-3">
-            {Object.entries(roleConfig).map(([key, config]) => (
-              <div key={key} className="flex items-start gap-3 p-3 rounded-lg border">
-                <div className={`rounded-lg p-2 ${config.color}`}>
-                  {config.icon}
+            {(['owner', ...selectableRoles] as const).map((key) => {
+              const config = roleConfig[key];
+              return (
+                <div key={key} className="flex items-start gap-3 p-3 rounded-lg border">
+                  <div className={`rounded-lg p-2 ${config.color}`}>
+                    {config.icon}
+                  </div>
+                  <div>
+                    <p className="font-medium">{config.label}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {config.description}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium">{config.label}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {config.description}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -370,17 +409,20 @@ export function UsersTab({ initialUsers, branches }: UsersTabProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(roleConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        <div className="flex items-center gap-2">
-                          {config.icon}
-                          <span>{config.label}</span>
-                          <span className="text-xs text-muted-foreground">
-                            - {config.description}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {selectableRoles.map((key) => {
+                      const config = roleConfig[key];
+                      return (
+                        <SelectItem key={key} value={key}>
+                          <div className="flex items-center gap-2">
+                            {config.icon}
+                            <span>{config.label}</span>
+                            <span className="text-xs text-muted-foreground">
+                              - {config.description}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

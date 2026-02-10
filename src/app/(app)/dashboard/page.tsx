@@ -4,10 +4,22 @@ import { useEffect, useState } from "react";
 import { useBranch } from "@/hooks/use-branch";
 import {
   KpiCard,
+  ReviewVolumeChart,
+  SentimentPieChart,
+  RatingDistributionChart,
+  ThemeRadarChart,
+  TopIssuesChart,
+  HealthGauge,
+  SourceDistributionChart,
+  WeeklyComparisonChart,
 } from "@/components/dashboard";
+import {
+  SentimentTrendChart as SentimentLineChart,
+} from "@/components/dashboard/charts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Smile,
   Star,
@@ -15,6 +27,11 @@ import {
   AlertTriangle,
   RefreshCw,
   Calendar,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Activity,
+  Target,
 } from "lucide-react";
 
 interface DashboardData {
@@ -34,12 +51,18 @@ interface DashboardData {
     avgSeverity: number;
     reviewsProcessed: number;
     themesProcessed: number;
+    healthScore: number;
   };
   sentimentDistribution?: {
     positive: number;
     neutral: number;
     negative: number;
   };
+  ratingDistribution?: Array<{
+    rating: number;
+    count: number;
+    label: string;
+  }>;
   sourceDistribution?: Array<{
     source: string;
     sourceName: string;
@@ -54,16 +77,52 @@ interface DashboardData {
     score010: number;
     mentions: number;
     severity: number;
+    radarScore: number;
   }>;
+  topIssues?: Array<{
+    themeName: string;
+    severity: number;
+    score010: number;
+    mentions: number;
+  }>;
+  topPerformers?: Array<{
+    themeName: string;
+    score010: number;
+    mentions: number;
+  }>;
+  trends?: {
+    weekly: Array<{
+      week: string;
+      weekLabel: string;
+      reviews: number;
+      sentimentScore: number;
+      avgRating: number | null;
+      positive: number;
+      negative: number;
+    }>;
+    dailyVolume: Array<{
+      date: string;
+      dateLabel: string;
+      reviews: number;
+    }>;
+  };
+}
+
+interface CompletedTask {
+  id: string;
+  title: string;
+  completedAt: string;
+  themeName?: string;
 }
 
 export default function DashboardPage() {
   const { selectedTenantId, selectedTenant, isLoading: branchLoading } = useBranch();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch dashboard data when tenant changes
+  // Fetch dashboard data and completed tasks when tenant changes
   useEffect(() => {
     async function fetchDashboard() {
       if (!selectedTenantId) {
@@ -75,15 +134,32 @@ export default function DashboardPage() {
       setError(null);
 
       try {
-        const res = await fetch(`/api/portal/dashboard?tenantId=${selectedTenantId}`);
-        if (res.ok) {
-          const dashboardData = await res.json();
+        // Fetch dashboard and tasks in parallel
+        const [dashboardRes, tasksRes] = await Promise.all([
+          fetch(`/api/portal/dashboard?tenantId=${selectedTenantId}`),
+          fetch(`/api/portal/tasks?tenantId=${selectedTenantId}&status=COMPLETED`),
+        ]);
+        
+        if (dashboardRes.ok) {
+          const dashboardData = await dashboardRes.json();
           setData(dashboardData);
         } else {
-          const err = await res.json();
+          const err = await dashboardRes.json();
           setError(err.error || 'Failed to load dashboard');
         }
-      } catch (err) {
+        
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          setCompletedTasks(
+            (tasksData.tasks || []).map((t: { id: string; title: string; completedAt: string; themeName?: string }) => ({
+              id: t.id,
+              title: t.title,
+              completedAt: t.completedAt,
+              themeName: t.themeName,
+            }))
+          );
+        }
+      } catch {
         setError('Failed to load dashboard data');
       } finally {
         setIsLoading(false);
@@ -93,38 +169,73 @@ export default function DashboardPage() {
     fetchDashboard();
   }, [selectedTenantId]);
 
-  // Calculate negative rate from distribution
+  // Calculate metrics
   const negativeRate = data?.sentimentDistribution
     ? Math.round((data.sentimentDistribution.negative / 
         (data.sentimentDistribution.positive + data.sentimentDistribution.neutral + data.sentimentDistribution.negative || 1)) * 100)
     : 0;
 
+  const positiveRate = data?.sentimentDistribution
+    ? Math.round((data.sentimentDistribution.positive / 
+        (data.sentimentDistribution.positive + data.sentimentDistribution.neutral + data.sentimentDistribution.negative || 1)) * 100)
+    : 0;
+
+  // Calculate week-over-week changes from trend data
+  const getChanges = () => {
+    const defaults = { 
+      sentiment: { change: 0, direction: 'neutral' as const },
+      rating: { change: 0, direction: 'neutral' as const },
+      reviews: { change: 0, direction: 'neutral' as const },
+      positive: { change: 0, direction: 'neutral' as const },
+    };
+    
+    if (!data?.trends?.weekly || data.trends.weekly.length < 2) return defaults;
+    
+    const [prev, current] = data.trends.weekly.slice(-2);
+    if (!prev || !current) return defaults;
+    
+    // Sentiment change
+    const sentimentChange = current.sentimentScore - prev.sentimentScore;
+    const sentimentDir = sentimentChange > 0.2 ? 'up' : sentimentChange < -0.2 ? 'down' : 'neutral';
+    
+    // Rating change
+    const prevRating = prev.avgRating ?? 0;
+    const currRating = current.avgRating ?? 0;
+    const ratingChange = currRating - prevRating;
+    const ratingDir = ratingChange > 0.1 ? 'up' : ratingChange < -0.1 ? 'down' : 'neutral';
+    
+    // Reviews change (percentage)
+    const reviewsChange = prev.reviews > 0 
+      ? Math.round(((current.reviews - prev.reviews) / prev.reviews) * 100) 
+      : 0;
+    const reviewsDir = reviewsChange > 5 ? 'up' : reviewsChange < -5 ? 'down' : 'neutral';
+    
+    // Positive rate change
+    const prevPositiveRate = prev.reviews > 0 ? (prev.positive / prev.reviews) * 100 : 0;
+    const currPositiveRate = current.reviews > 0 ? (current.positive / current.reviews) * 100 : 0;
+    const positiveChange = currPositiveRate - prevPositiveRate;
+    const positiveDir = positiveChange > 2 ? 'up' : positiveChange < -2 ? 'down' : 'neutral';
+    
+    return {
+      sentiment: { change: Math.round(sentimentChange * 10) / 10, direction: sentimentDir as 'up' | 'down' | 'neutral' },
+      rating: { change: Math.round(ratingChange * 10) / 10, direction: ratingDir as 'up' | 'down' | 'neutral' },
+      reviews: { change: reviewsChange, direction: reviewsDir as 'up' | 'down' | 'neutral' },
+      positive: { change: Math.round(positiveChange * 10) / 10, direction: positiveDir as 'up' | 'down' | 'neutral' },
+    };
+  };
+
+  const changes = getChanges();
+  const trendDirection = changes.sentiment.direction;
 
   if (branchLoading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1>Dashboard</h1>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (!selectedTenantId) {
     return (
       <div className="space-y-6">
         <div>
-          <h1>Dashboard</h1>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Select a branch to view dashboard</p>
         </div>
         <Card>
@@ -137,32 +248,14 @@ export default function DashboardPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1>Dashboard</h1>
-          <p className="text-muted-foreground">
-            {selectedTenant?.name || 'Loading...'}
-          </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map(i => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
     return (
       <div className="space-y-6">
         <div>
-          <h1>Dashboard</h1>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">{selectedTenant?.name}</p>
         </div>
         <Card className="border-destructive">
@@ -179,7 +272,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1>Dashboard</h1>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">{selectedTenant?.name}</p>
         </div>
         <Card>
@@ -187,7 +280,10 @@ export default function DashboardPage() {
             <RefreshCw className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-medium text-lg mb-2">No Data Yet</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              {data?.message || 'No completed score runs found. Data will appear here once reviews are processed.'}
+              {data?.message || 'Import reviews and run scoring to see your dashboard.'}
+            </p>
+            <p className="text-sm text-muted-foreground mt-4">
+              Go to <span className="font-medium">Data Sources</span> to import reviews and click <span className="font-medium">Run Scoring</span>.
             </p>
           </CardContent>
         </Card>
@@ -200,203 +296,375 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1>Dashboard</h1>
-          <p className="text-muted-foreground">
-            Overview of review performance and customer sentiment.
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground flex items-center gap-2 mt-1">
+            <Activity className="h-4 w-4" />
+            Review Intelligence for {selectedTenant?.name}
           </p>
         </div>
         {data.scoreRun && (
-          <div className="text-sm text-muted-foreground text-right">
+          <div className="text-sm text-muted-foreground text-right bg-muted/50 px-4 py-2 rounded-lg">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              <span>
-                {new Date(data.scoreRun.periodStart).toLocaleDateString()} - {new Date(data.scoreRun.periodEnd).toLocaleDateString()}
+              <span className="font-medium">
+                {new Date(data.scoreRun.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(data.scoreRun.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
             </div>
-            <div className="text-xs">
-              Last updated: {new Date(data.scoreRun.completedAt).toLocaleString()}
+            <div className="text-xs mt-1">
+              Updated: {new Date(data.scoreRun.completedAt).toLocaleString()}
             </div>
           </div>
         )}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          title="Overall Sentiment"
-          value={data.kpis?.avgSentiment ?? 5}
-          format="sentiment"
-          change={0}
-          changeLabel="score out of 10"
-          trend="neutral"
-          icon={<Smile className="h-5 w-5" />}
-          subtitle="AI-analyzed sentiment"
-          tooltip="AI-analyzed sentiment score (0-10) based on review text. Higher is better."
-        />
-        <KpiCard
-          title="Average Rating"
-          value={data.kpis?.avgRating ?? 0}
-          format="rating"
-          change={0}
-          changeLabel="out of 5 stars"
-          trend="neutral"
-          icon={<Star className="h-5 w-5" />}
-          subtitle="Star rating average"
-          tooltip="Average star rating across all review platforms."
-        />
-        <KpiCard
-          title="Total Reviews"
-          value={data.kpis?.totalReviews ?? 0}
-          format="number"
-          change={0}
-          changeLabel="in period"
-          trend="neutral"
-          icon={<MessageSquare className="h-5 w-5" />}
-          tooltip="Total number of reviews in the scoring period."
-        />
-        <KpiCard
-          title="Negative Review Rate"
-          value={negativeRate}
-          format="percent"
-          change={0}
-          changeLabel="of total"
-          trend="neutral"
-          icon={<AlertTriangle className="h-5 w-5" />}
-          tooltip="Percentage of reviews classified as negative sentiment. Lower is better."
-        />
+      {/* Top Row: Health Gauge + KPI Cards */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-5">
+        {/* Health Gauge - Prominent */}
+        <div className="lg:col-span-1">
+          <HealthGauge 
+            score={data.kpis?.healthScore ?? 50} 
+            label="Overall Health"
+          />
+        </div>
+
+        {/* KPI Cards */}
+        <div className="lg:col-span-4 grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            title="Sentiment Score"
+            value={data.kpis?.avgSentiment ?? 5}
+            format="sentiment"
+            change={changes.sentiment.change}
+            changeLabel="vs last week"
+            trend={changes.sentiment.direction}
+            icon={
+              changes.sentiment.direction === 'up' ? <TrendingUp className="h-5 w-5 text-green-500" /> :
+              changes.sentiment.direction === 'down' ? <TrendingDown className="h-5 w-5 text-red-500" /> :
+              <Minus className="h-5 w-5 text-yellow-500" />
+            }
+            subtitle="AI-analyzed"
+            tooltip="AI-analyzed sentiment score based on review content (0-10 scale)"
+          />
+          <KpiCard
+            title="Star Rating"
+            value={data.kpis?.avgRating ?? 0}
+            format="rating"
+            change={changes.rating.change}
+            changeLabel="vs last week"
+            trend={changes.rating.direction}
+            icon={
+              changes.rating.direction === 'up' ? <TrendingUp className="h-5 w-5 text-green-500" /> :
+              changes.rating.direction === 'down' ? <TrendingDown className="h-5 w-5 text-red-500" /> :
+              <Star className="h-5 w-5 text-yellow-500" />
+            }
+            subtitle="Out of 5"
+            tooltip="Average star rating across all reviews"
+          />
+          <KpiCard
+            title="Total Reviews"
+            value={data.kpis?.totalReviews ?? 0}
+            format="number"
+            change={changes.reviews.change}
+            changeLabel="% vs last week"
+            trend={changes.reviews.direction}
+            icon={<MessageSquare className="h-5 w-5 text-blue-500" />}
+            tooltip="Total reviews analyzed in scoring period"
+          />
+          <KpiCard
+            title="Positive Rate"
+            value={positiveRate}
+            format="percent"
+            change={changes.positive.change}
+            changeLabel="vs last week"
+            trend={changes.positive.direction}
+            icon={<Smile className="h-5 w-5 text-green-500" />}
+            tooltip={`${data.sentimentDistribution?.positive ?? 0} positive out of ${data.kpis?.totalReviews ?? 0} reviews`}
+          />
+        </div>
       </div>
 
-      {/* Sentiment Distribution */}
-      {data.sentimentDistribution && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Sentiment Distribution</CardTitle>
-            <CardDescription>Breakdown of review sentiments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">Positive</span>
-                  <Badge variant="default">{data.sentimentDistribution.positive}</Badge>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green-500 rounded-full"
-                    style={{ 
-                      width: `${(data.sentimentDistribution.positive / (data.kpis?.reviewsProcessed || 1)) * 100}%` 
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">Neutral</span>
-                  <Badge variant="secondary">{data.sentimentDistribution.neutral}</Badge>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-yellow-500 rounded-full"
-                    style={{ 
-                      width: `${(data.sentimentDistribution.neutral / (data.kpis?.reviewsProcessed || 1)) * 100}%` 
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">Negative</span>
-                  <Badge variant="destructive">{data.sentimentDistribution.negative}</Badge>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-red-500 rounded-full"
-                    style={{ 
-                      width: `${(data.sentimentDistribution.negative / (data.kpis?.reviewsProcessed || 1)) * 100}%` 
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Tabs for Different Views */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="themes">Themes</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
+        </TabsList>
 
-      {/* Source Distribution */}
-      {data.sourceDistribution && data.sourceDistribution.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Reviews by Source</CardTitle>
-            <CardDescription>Distribution of reviews across platforms</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data.sourceDistribution.map(source => {
-                const total = data.sourceDistribution?.reduce((sum, s) => sum + s.count, 0) || 1;
-                const percentage = Math.round((source.count / total) * 100);
-                return (
-                  <div key={source.source} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">{source.sourceName || source.source}</span>
-                      <span className="text-muted-foreground">{source.count} reviews ({percentage}%)</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Row 1: Sentiment Trend + Issues */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+            {/* Sentiment Trend - Takes 2/3 */}
+            <div className="lg:col-span-2">
+              {data.trends?.weekly && data.trends.weekly.length > 0 ? (
+                <SentimentLineChart data={data.trends.weekly} completedTasks={completedTasks} />
+              ) : (
+                <Card className="h-full">
+                  <CardContent className="flex items-center justify-center h-[300px]">
+                    <p className="text-muted-foreground">Need more data for trends</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+            {/* Top Issues */}
+            <div className="lg:col-span-1">
+              <TopIssuesChart data={data.topIssues ?? []} />
+            </div>
+          </div>
 
-      {/* Theme Scores Table */}
-      {data.themeScores && data.themeScores.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Theme Analysis</CardTitle>
-            <CardDescription>Sentiment scores by theme, sorted by severity</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data.themeScores.map(theme => (
-                <div key={theme.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
+          {/* Row 2: Distribution Charts */}
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            <SentimentPieChart 
+              positive={data.sentimentDistribution?.positive ?? 0}
+              neutral={data.sentimentDistribution?.neutral ?? 0}
+              negative={data.sentimentDistribution?.negative ?? 0}
+            />
+            <RatingDistributionChart data={data.ratingDistribution ?? []} />
+            <SourceDistributionChart data={data.sourceDistribution ?? []} />
+          </div>
+
+          {/* Top Performers Card */}
+          {data.topPerformers && data.topPerformers.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-green-500" />
+                  Top Performing Areas
+                </CardTitle>
+                <CardDescription>Your strongest themes based on customer feedback</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3">
+                  {data.topPerformers.slice(0, 5).map((theme, idx) => (
+                    <Badge 
+                      key={theme.themeName}
+                      variant={idx === 0 ? "default" : "secondary"}
+                      className="text-sm py-1.5 px-3"
+                    >
+                      <span className="font-medium">{theme.themeName}</span>
+                      <span className="ml-2 opacity-70">{theme.score010.toFixed(1)}/10</span>
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Trends Tab */}
+        <TabsContent value="trends" className="space-y-4">
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {data.trends?.weekly && (
+              <SentimentLineChart data={data.trends.weekly} completedTasks={completedTasks} />
+            )}
+            {data.trends?.weekly && (
+              <WeeklyComparisonChart data={data.trends.weekly} />
+            )}
+          </div>
+          {data.trends?.dailyVolume && (
+            <ReviewVolumeChart data={data.trends.dailyVolume} />
+          )}
+        </TabsContent>
+
+        {/* Themes Tab */}
+        <TabsContent value="themes" className="space-y-4">
+          {/* Theme Radar Chart */}
+          {data.themeScores && data.themeScores.length >= 3 && (
+            <ThemeRadarChart data={data.themeScores} />
+          )}
+
+          {/* Theme Scores Table */}
+          {data.themeScores && data.themeScores.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>All Theme Scores</CardTitle>
+                <CardDescription>Detailed breakdown by theme, sorted by severity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {data.themeScores.map(theme => (
                     <div 
-                      className={`w-2 h-8 rounded-full ${
-                        theme.score010 >= 7 ? 'bg-green-500' : 
-                        theme.score010 >= 4 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                    />
-                    <div>
-                      <p className="font-medium">{theme.themeName}</p>
-                      <p className="text-xs text-muted-foreground">{theme.themeCategory}</p>
+                      key={theme.id} 
+                      className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className={`w-2 h-10 rounded-full ${
+                            theme.score010 >= 7 ? 'bg-green-500' : 
+                            theme.score010 >= 4 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                        />
+                        <div>
+                          <p className="font-medium">{theme.themeName}</p>
+                          <p className="text-xs text-muted-foreground">{theme.themeCategory}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-8 text-sm">
+                        <div className="text-center">
+                          <div className={`text-lg font-bold ${
+                            theme.score010 >= 7 ? 'text-green-600' : 
+                            theme.score010 >= 4 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {theme.score010.toFixed(1)}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Score</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-semibold">{theme.mentions}</div>
+                          <p className="text-xs text-muted-foreground">Mentions</p>
+                        </div>
+                        <div className="text-center w-16">
+                          <div className="text-sm font-medium text-muted-foreground">
+                            {theme.severity > 0 ? theme.severity.toFixed(2) : '—'}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Severity</p>
+                        </div>
+                        <div className="w-24">
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                theme.score010 >= 7 ? 'bg-green-500' : 
+                                theme.score010 >= 4 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${theme.score010 * 10}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Details Tab */}
+        <TabsContent value="details" className="space-y-4">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            {/* Score Run Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Scoring Details</CardTitle>
+                <CardDescription>Information about the latest score run</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Reviews Processed</p>
+                    <p className="text-2xl font-bold">{data.kpis?.reviewsProcessed ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Themes Analyzed</p>
+                    <p className="text-2xl font-bold">{data.kpis?.themesProcessed ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Mentions</p>
+                    <p className="text-2xl font-bold">{data.kpis?.totalMentions ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Severity</p>
+                    <p className="text-2xl font-bold">{(data.kpis?.avgSeverity ?? 0).toFixed(2)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sentiment Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Sentiment Breakdown</CardTitle>
+                <CardDescription>Detailed sentiment distribution</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-green-500" />
+                      <span>Positive Reviews</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-bold text-green-600">
+                        {data.sentimentDistribution?.positive ?? 0}
+                      </span>
+                      <span className="text-muted-foreground">({positiveRate}%)</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="text-right">
-                      <p className="font-medium">{theme.score010.toFixed(1)}</p>
-                      <p className="text-xs text-muted-foreground">Score</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-yellow-500" />
+                      <span>Neutral Reviews</span>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{theme.mentions}</p>
-                      <p className="text-xs text-muted-foreground">Mentions</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-bold text-yellow-600">
+                        {data.sentimentDistribution?.neutral ?? 0}
+                      </span>
+                      <span className="text-muted-foreground">
+                        ({100 - positiveRate - negativeRate}%)
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{theme.severity.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">Severity</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-red-500" />
+                      <span>Negative Reviews</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-bold text-red-600">
+                        {data.sentimentDistribution?.negative ?? 0}
+                      </span>
+                      <span className="text-muted-foreground">({negativeRate}%)</span>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// Loading skeleton component
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-5">
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[160px] w-full" />
           </CardContent>
         </Card>
-      )}
+        <div className="lg:col-span-4 grid gap-4 grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardContent className="p-6">
+              <Skeleton className="h-[300px] w-full" />
+            </CardContent>
+          </Card>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

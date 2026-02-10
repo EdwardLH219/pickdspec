@@ -233,6 +233,9 @@ export interface StartIngestionParams {
     filename: string;
     mimeType: string;
   };
+  
+  /** Config overrides for the ingestion run (e.g., column mappings from upload) */
+  configOverrides?: Partial<ConnectorConfig>;
 }
 
 /**

@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Lightbulb,
   AlertCircle,
@@ -34,6 +36,9 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Calendar,
+  User,
+  ListChecks,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -79,7 +84,14 @@ export default function RecommendationsPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [selectedRec, setSelectedRec] = useState<Recommendation | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [taskAssigneeId, setTaskAssigneeId] = useState<string>("");
+  const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Team members for assignment
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
   // Fetch recommendations
   useEffect(() => {
@@ -114,6 +126,28 @@ export default function RecommendationsPage() {
     fetchRecommendations();
   }, [selectedTenantId, statusFilter]);
 
+  // Fetch team members when tenant changes
+  useEffect(() => {
+    async function fetchTeamMembers() {
+      if (!selectedTenantId) return;
+      
+      setLoadingTeam(true);
+      try {
+        const res = await fetch(`/api/portal/team?tenantId=${selectedTenantId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTeamMembers(data.members || []);
+        }
+      } catch {
+        // Silently fail - team members are optional
+      } finally {
+        setLoadingTeam(false);
+      }
+    }
+    
+    fetchTeamMembers();
+  }, [selectedTenantId]);
+
   // Filter recommendations based on status
   const filteredRecommendations = recommendations.filter(rec => {
     if (statusFilter === "actionable") {
@@ -125,32 +159,72 @@ export default function RecommendationsPage() {
     return true;
   });
 
+  // Open create task dialog
+  const openCreateTaskDialog = (rec: Recommendation) => {
+    setSelectedRec(rec);
+    setTaskTitle(rec.suggestedActions?.[0] || rec.title);
+    setTaskDueDate("");
+    setTaskAssigneeId("");
+    setSelectedActions(rec.suggestedActions?.slice(0, 1) || []);
+    setCreateTaskOpen(true);
+  };
+
+  // Toggle action selection
+  const toggleAction = (action: string) => {
+    setSelectedActions(prev => 
+      prev.includes(action) 
+        ? prev.filter(a => a !== action)
+        : [...prev, action]
+    );
+    // Update task title to first selected action
+    if (!selectedActions.includes(action)) {
+      setTaskTitle(action);
+    } else if (selectedActions.length > 1) {
+      const remaining = selectedActions.filter(a => a !== action);
+      setTaskTitle(remaining[0] || selectedRec?.title || "");
+    }
+  };
+
   // Create task handler
   const handleCreateTask = async () => {
     if (!selectedRec || !taskTitle.trim()) return;
 
     setIsCreating(true);
     try {
-      const res = await fetch('/api/portal/recommendations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recommendationId: selectedRec.id,
-          tasks: [{ title: taskTitle }],
-        }),
-      });
-
-      if (res.ok) {
-        toast.success('Task created', {
-          description: 'View and manage in the Tasks page.',
+      // Create task(s) via the tasks API
+      const tasksToCreate = selectedActions.length > 0 ? selectedActions : [taskTitle];
+      
+      for (let i = 0; i < tasksToCreate.length; i++) {
+        const title = tasksToCreate[i];
+        const res = await fetch('/api/portal/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: selectedTenantId,
+            recommendationId: selectedRec.id,
+            title,
+            ...(taskDueDate && { dueDate: new Date(taskDueDate).toISOString() }),
+            ...(taskAssigneeId && { assignedToId: taskAssigneeId }),
+          }),
         });
-        setCreateTaskOpen(false);
-        setTaskTitle("");
-        router.push('/tasks?created=true');
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Failed to create task');
+
+        if (!res.ok) {
+          const err = await res.json();
+          toast.error(err.error || `Failed to create task: ${title}`);
+          setIsCreating(false);
+          return;
+        }
       }
+
+      toast.success(tasksToCreate.length > 1 ? `${tasksToCreate.length} tasks created` : 'Task created', {
+        description: 'View and manage in the Tasks page.',
+      });
+      setCreateTaskOpen(false);
+      setTaskTitle("");
+      setTaskDueDate("");
+      setTaskAssigneeId("");
+      setSelectedActions([]);
+      router.push('/tasks?created=true');
     } catch {
       toast.error('Failed to create task');
     } finally {
@@ -408,11 +482,7 @@ export default function RecommendationsPage() {
                 <div className="flex gap-2 mt-4">
                   <Button
                     size="sm"
-                    onClick={() => {
-                      setSelectedRec(rec);
-                      setTaskTitle(rec.title);
-                      setCreateTaskOpen(true);
-                    }}
+                    onClick={() => openCreateTaskDialog(rec)}
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Create Task
@@ -426,36 +496,134 @@ export default function RecommendationsPage() {
 
       {/* Create Task Dialog */}
       <Dialog open={createTaskOpen} onOpenChange={setCreateTaskOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Create Task</DialogTitle>
+            <DialogTitle>Create Task from Recommendation</DialogTitle>
             <DialogDescription>
-              Create a task from this recommendation to track progress.
+              Select actions to create as tasks and assign to team members.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Recommendation</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedRec?.title}
-              </p>
+          
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-5 py-4">
+              {/* Recommendation Info */}
+              <div className="bg-muted/50 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-sm">{selectedRec?.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedRec?.themeName} • Score: {selectedRec?.score010.toFixed(1)}/10 • {selectedRec?.mentions} mentions
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Suggested Actions */}
+              {selectedRec?.suggestedActions && selectedRec.suggestedActions.length > 0 && (
+                <div>
+                  <Label className="flex items-center gap-2 mb-3">
+                    <ListChecks className="h-4 w-4" />
+                    Suggested Actions
+                  </Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Select one or more actions to create as tasks:
+                  </p>
+                  <div className="space-y-2">
+                    {selectedRec.suggestedActions.map((action, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          selectedActions.includes(action)
+                            ? 'bg-primary/5 border-primary'
+                            : 'bg-background hover:bg-muted/50'
+                        }`}
+                        onClick={() => toggleAction(action)}
+                      >
+                        <Checkbox
+                          checked={selectedActions.includes(action)}
+                          onCheckedChange={() => toggleAction(action)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm">{action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Task Title (shown if no actions selected) */}
+              {selectedActions.length === 0 && (
+                <div>
+                  <Label htmlFor="taskTitle">Task Title</Label>
+                  <Input
+                    id="taskTitle"
+                    value={taskTitle}
+                    onChange={(e) => setTaskTitle(e.target.value)}
+                    placeholder="Enter task title"
+                    className="mt-1.5"
+                  />
+                </div>
+              )}
+
+              {/* Due Date */}
+              <div>
+                <Label htmlFor="dueDate" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Due Date
+                </Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="mt-1.5"
+                />
+              </div>
+
+              {/* Assignee */}
+              <div>
+                <Label className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Assign To
+                </Label>
+                <Select 
+                  value={taskAssigneeId || "unassigned"} 
+                  onValueChange={(v) => setTaskAssigneeId(v === "unassigned" ? "" : v)}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder={loadingTeam ? "Loading team..." : "Select team member"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {teamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name || member.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {teamMembers.length === 0 && !loadingTeam && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No team members found. Add members in Account settings.
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <Label htmlFor="taskTitle">Task Title</Label>
-              <Input
-                id="taskTitle"
-                value={taskTitle}
-                onChange={(e) => setTaskTitle(e.target.value)}
-                placeholder="Enter task title"
-              />
-            </div>
-          </div>
-          <DialogFooter>
+          </ScrollArea>
+
+          <DialogFooter className="pt-4 border-t">
             <Button variant="outline" onClick={() => setCreateTaskOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateTask} disabled={isCreating || !taskTitle.trim()}>
-              {isCreating ? "Creating..." : "Create Task"}
+            <Button 
+              onClick={handleCreateTask} 
+              disabled={isCreating || (selectedActions.length === 0 && !taskTitle.trim())}
+            >
+              {isCreating ? "Creating..." : selectedActions.length > 1 
+                ? `Create ${selectedActions.length} Tasks` 
+                : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>

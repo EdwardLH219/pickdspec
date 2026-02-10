@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useBranch } from "@/hooks/use-branch";
-import { getMonthlyReportData } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,12 +28,70 @@ import {
   Calendar,
   Building2,
   Printer,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
+interface ReportData {
+  organization: { name: string };
+  branch: { name: string } | null;
+  dateRange: { start: string; end: string };
+  generatedAt: string;
+  totalReviews: number;
+  avgRating: number;
+  avgSentiment: number;
+  responseRate: number;
+  tldrBullets: string[];
+  thematics: Array<{
+    themeId: string;
+    themeName: string;
+    category: string;
+    avgSentimentScore: number;
+    mentionCount: number;
+    positiveCount: number;
+    neutralCount: number;
+    negativeCount: number;
+    trend: string;
+    trendPercentage: number;
+  }>;
+  whatPeopleLove: Array<{ theme: string; quote: string; source: string }>;
+  whatPeopleDislike: Array<{ theme: string; quote: string; source: string }>;
+  watchOuts: string[];
+  practicalTips: string[];
+  signals: { last30Days: number; last90Days: number; last365Days: number };
+  starDistribution: Array<{ rating: number; count: number; percentage: number }>;
+}
+
 export default function MonthlyReportPage() {
-  const { selectedBranch } = useBranch();
-  const reportData = getMonthlyReportData(selectedBranch?.id || null);
+  const { selectedTenantId } = useBranch();
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchReport() {
+      if (!selectedTenantId) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/portal/reports/monthly?tenantId=${selectedTenantId}`);
+        if (!res.ok) {
+          throw new Error('Failed to load report');
+        }
+        const data = await res.json();
+        setReportData(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchReport();
+  }, [selectedTenantId]);
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -46,6 +104,51 @@ export default function MonthlyReportPage() {
   const handlePrint = () => {
     window.print();
   };
+
+  const handleDownloadPdf = () => {
+    // Use browser's print dialog with "Save as PDF" option
+    // This is the most reliable cross-browser solution that handles all CSS correctly
+    window.print();
+  };
+
+  if (!selectedTenantId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <p className="text-muted-foreground">Please select a restaurant to view the report.</p>
+        <Link href="/reports">
+          <Button variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Reports
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading report...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !reportData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <p className="text-muted-foreground">{error || 'Failed to load report data'}</p>
+        <Link href="/reports">
+          <Button variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Reports
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -64,24 +167,15 @@ export default function MonthlyReportPage() {
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button disabled>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Coming in Phase 2</p>
-              </TooltipContent>
-            </Tooltip>
+            <Button onClick={handleDownloadPdf}>
+              <Download className="mr-2 h-4 w-4" />
+              Save as PDF
+            </Button>
           </div>
         </div>
 
         {/* ===== REPORT CONTENT ===== */}
-        <div className="report-container mx-auto max-w-4xl space-y-8 print:max-w-none print:space-y-6">
+        <div className="report-container mx-auto max-w-4xl space-y-8 print:max-w-none print:space-y-6 bg-background">
           
           {/* HEADER */}
           <header className="rounded-lg border bg-card p-6 print:border-2 print:border-gray-300">
@@ -168,57 +262,65 @@ export default function MonthlyReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.thematics.slice(0, 8).map((theme) => {
-                    const sentimentColor =
-                      theme.avgSentimentScore >= 7
-                        ? "text-emerald-600"
-                        : theme.avgSentimentScore >= 5
-                        ? "text-amber-600"
-                        : "text-rose-600";
+                  {reportData.thematics.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                        No theme data available. Run scoring to generate theme analysis.
+                      </td>
+                    </tr>
+                  ) : (
+                    reportData.thematics.slice(0, 8).map((theme) => {
+                      const sentimentColor =
+                        theme.avgSentimentScore >= 7
+                          ? "text-emerald-600"
+                          : theme.avgSentimentScore >= 5
+                          ? "text-amber-600"
+                          : "text-rose-600";
 
-                    const TrendIcon =
-                      theme.trend === "up"
-                        ? TrendingUp
-                        : theme.trend === "down"
-                        ? TrendingDown
-                        : Minus;
+                      const TrendIcon =
+                        theme.trend === "up"
+                          ? TrendingUp
+                          : theme.trend === "down"
+                          ? TrendingDown
+                          : Minus;
 
-                    const trendColor =
-                      theme.trend === "up"
-                        ? "text-emerald-600"
-                        : theme.trend === "down"
-                        ? "text-rose-600"
-                        : "text-gray-400";
+                      const trendColor =
+                        theme.trend === "up"
+                          ? "text-emerald-600"
+                          : theme.trend === "down"
+                          ? "text-rose-600"
+                          : "text-gray-400";
 
-                    return (
-                      <tr key={theme.themeId} className="border-b last:border-0">
-                        <td className="py-3 px-2">
-                          <span className="font-medium">{theme.themeName}</span>
-                          <Badge variant="outline" className="ml-2 text-xs hidden sm:inline-flex">
-                            {theme.category}
-                          </Badge>
-                        </td>
-                        <td className={`py-3 px-2 text-center font-semibold ${sentimentColor}`}>
-                          {theme.avgSentimentScore.toFixed(1)}
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          {theme.mentionCount}
-                        </td>
-                        <td className="py-3 px-2">
-                          <div className={`flex items-center justify-center gap-1 ${trendColor}`}>
-                            <TrendIcon className="h-4 w-4" />
-                            <span className="text-xs">
-                              {theme.trendPercentage > 0 ? "+" : ""}
-                              {theme.trendPercentage}%
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-2 text-muted-foreground text-xs hidden sm:table-cell">
-                          {theme.positiveCount} positive, {theme.neutralCount} neutral, {theme.negativeCount} negative
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      return (
+                        <tr key={theme.themeId} className="border-b last:border-0">
+                          <td className="py-3 px-2">
+                            <span className="font-medium">{theme.themeName}</span>
+                            <Badge variant="outline" className="ml-2 text-xs hidden sm:inline-flex">
+                              {theme.category}
+                            </Badge>
+                          </td>
+                          <td className={`py-3 px-2 text-center font-semibold ${sentimentColor}`}>
+                            {theme.avgSentimentScore.toFixed(1)}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {theme.mentionCount}
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className={`flex items-center justify-center gap-1 ${trendColor}`}>
+                              <TrendIcon className="h-4 w-4" />
+                              <span className="text-xs">
+                                {theme.trendPercentage > 0 ? "+" : ""}
+                                {theme.trendPercentage}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-muted-foreground text-xs hidden sm:table-cell">
+                            {theme.positiveCount} positive, {theme.neutralCount} neutral, {theme.negativeCount} negative
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -233,15 +335,19 @@ export default function MonthlyReportPage() {
                 What People Love
               </h2>
               <div className="space-y-4">
-                {reportData.whatPeopleLove.map((item, idx) => (
-                  <div key={idx} className="border-l-2 border-emerald-500 pl-3">
-                    <Badge variant="secondary" className="mb-1 text-xs">
-                      {item.theme}
-                    </Badge>
-                    <p className="text-sm italic text-muted-foreground">{item.quote}</p>
-                    <p className="text-xs text-muted-foreground mt-1">— {item.source}</p>
-                  </div>
-                ))}
+                {reportData.whatPeopleLove.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No positive quotes available for this period.</p>
+                ) : (
+                  reportData.whatPeopleLove.map((item, idx) => (
+                    <div key={idx} className="border-l-2 border-emerald-500 pl-3">
+                      <Badge variant="secondary" className="mb-1 text-xs">
+                        {item.theme}
+                      </Badge>
+                      <p className="text-sm italic text-muted-foreground">&quot;{item.quote}&quot;</p>
+                      <p className="text-xs text-muted-foreground mt-1">— {item.source}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </section>
 
@@ -252,15 +358,19 @@ export default function MonthlyReportPage() {
                 What People Dislike
               </h2>
               <div className="space-y-4">
-                {reportData.whatPeopleDislike.map((item, idx) => (
-                  <div key={idx} className="border-l-2 border-rose-500 pl-3">
-                    <Badge variant="secondary" className="mb-1 text-xs">
-                      {item.theme}
-                    </Badge>
-                    <p className="text-sm italic text-muted-foreground">{item.quote}</p>
-                    <p className="text-xs text-muted-foreground mt-1">— {item.source}</p>
-                  </div>
-                ))}
+                {reportData.whatPeopleDislike.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No negative quotes in this period - great job!</p>
+                ) : (
+                  reportData.whatPeopleDislike.map((item, idx) => (
+                    <div key={idx} className="border-l-2 border-rose-500 pl-3">
+                      <Badge variant="secondary" className="mb-1 text-xs">
+                        {item.theme}
+                      </Badge>
+                      <p className="text-sm italic text-muted-foreground">&quot;{item.quote}&quot;</p>
+                      <p className="text-xs text-muted-foreground mt-1">— {item.source}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </section>
           </div>
@@ -295,14 +405,18 @@ export default function MonthlyReportPage() {
                 Practical Tips
               </h2>
               <ul className="space-y-3">
-                {reportData.practicalTips.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-medium">
-                      {idx + 1}
-                    </span>
-                    <span>{item}</span>
-                  </li>
-                ))}
+                {reportData.practicalTips.length === 0 ? (
+                  <li className="text-sm text-muted-foreground">Continue monitoring feedback to maintain current standards.</li>
+                ) : (
+                  reportData.practicalTips.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-medium">
+                        {idx + 1}
+                      </span>
+                      <span>{item}</span>
+                    </li>
+                  ))
+                )}
               </ul>
             </section>
           </div>
@@ -332,7 +446,7 @@ export default function MonthlyReportPage() {
 
               {/* Star Distribution */}
               <div>
-                <h3 className="text-sm font-medium mb-3">Star Distribution (Last 30 Days)</h3>
+                <h3 className="text-sm font-medium mb-3">Star Distribution</h3>
                 <div className="space-y-2">
                   {reportData.starDistribution.map((item) => (
                     <div key={item.rating} className="flex items-center gap-3">
@@ -365,7 +479,7 @@ export default function MonthlyReportPage() {
           {/* FOOTER */}
           <footer className="text-center text-xs text-muted-foreground pt-4 border-t">
             <p>
-              Report generated by Pick&apos;d Review Intelligence on{" "}
+              Report generated by Pick&apos;t Review Intelligence on{" "}
               {new Date(reportData.generatedAt).toLocaleString("en-US", {
                 dateStyle: "long",
                 timeStyle: "short",

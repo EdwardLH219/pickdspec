@@ -97,18 +97,18 @@ export function DataSourceActions({ connector, isOwner }: DataSourceActionsProps
       formData.append('file', uploadFile);
       formData.append('connectorId', connector.id);
 
-      // Add column mappings based on connector type
-      if (connector.sourceType === 'WEBSITE') {
-        // Default CSV mappings
-        const mappings = {
-          content: 'Review',
-          reviewDate: 'Date',
-          rating: 'Rating',
-          authorName: 'Author',
-          dateFormat: 'DD/MM/YYYY',
-        };
-        formData.append('columnMappings', JSON.stringify(mappings));
-      }
+              // Add column mappings for CSV uploads (works for all connector types)
+              const fileExtension = uploadFile.name.toLowerCase().split('.').pop();
+              if (fileExtension === 'csv' || fileExtension === 'txt') {
+                const mappings = {
+                  content: 'content',
+                  reviewDate: 'date',
+                  rating: 'rating',
+                  authorName: 'author',
+                  dateFormat: 'YYYY-MM-DD',
+                };
+                formData.append('columnMappings', JSON.stringify(mappings));
+              }
 
       const response = await fetch('/api/ingestion/upload', {
         method: 'POST',
@@ -196,10 +196,10 @@ export function DataSourceActions({ connector, isOwner }: DataSourceActionsProps
               <div className="text-xs p-3 bg-muted rounded">
                 <p className="font-medium mb-1">Expected columns:</p>
                 <ul className="space-y-0.5 text-muted-foreground">
-                  <li><strong>Review</strong> - Review content (required)</li>
-                  <li><strong>Date</strong> - Review date DD/MM/YYYY (required)</li>
-                  <li><strong>Rating</strong> - Star rating 1-5 (optional)</li>
-                  <li><strong>Author</strong> - Reviewer name (optional)</li>
+                  <li><strong>content</strong> - Review content (required)</li>
+                  <li><strong>date</strong> - Review date YYYY-MM-DD (required)</li>
+                  <li><strong>rating</strong> - Star rating 1-5 (optional)</li>
+                  <li><strong>author</strong> - Reviewer name (optional)</li>
                 </ul>
               </div>
             )}

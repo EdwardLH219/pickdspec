@@ -97,6 +97,11 @@ export async function startIngestion(
       }
     }
     
+    // Merge any config overrides (e.g., column mappings from upload)
+    if (params.configOverrides) {
+      config = { ...config, ...params.configOverrides };
+    }
+    
     // Create connector instance
     const connectorInstance = createConnector(
       connector.sourceType,

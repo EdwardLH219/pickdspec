@@ -37,12 +37,29 @@ export function ProfileTab({ organization }: ProfileTabProps) {
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    toast.success("Settings saved", {
-      description: "Your organization preferences have been updated.",
-    });
+    try {
+      const res = await fetch('/api/portal/account', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizationName: orgName }),
+      });
+      
+      if (res.ok) {
+        toast.success("Settings saved", {
+          description: "Your organization preferences have been updated.",
+        });
+      } else {
+        toast.error("Failed to save", {
+          description: "Could not update organization settings.",
+        });
+      }
+    } catch (err) {
+      toast.error("Error", {
+        description: "An error occurred while saving.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

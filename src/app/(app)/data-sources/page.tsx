@@ -10,8 +10,9 @@ import { redirect } from 'next/navigation';
 import { db } from '@/server/db';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Database, RefreshCw, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Database, RefreshCw, CheckCircle2, AlertCircle, Clock, Play } from 'lucide-react';
 import { DataSourceActions } from './components/data-source-actions';
+import { RunScoringButton } from './components/run-scoring-button';
 
 export default async function DataSourcesPage() {
   const session = await auth();
@@ -143,6 +144,36 @@ export default async function DataSourcesPage() {
           </div>
         )}
       </div>
+
+      {/* Run Scoring */}
+      {connectors.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              Process Reviews
+            </CardTitle>
+            <CardDescription>
+              Run the scoring pipeline to analyze imported reviews
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {/* Get unique tenants */}
+              {Array.from(new Set(connectors.map(c => c.tenant.id))).map(tenantId => {
+                const tenant = connectors.find(c => c.tenant.id === tenantId)?.tenant;
+                if (!tenant) return null;
+                return (
+                  <div key={tenantId} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <span className="font-medium">{tenant.name}</span>
+                    <RunScoringButton tenantId={tenantId} tenantName={tenant.name} />
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Activity */}
       <Card>

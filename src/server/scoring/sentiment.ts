@@ -219,55 +219,181 @@ export class StubSentimentProvider implements ISentimentProvider {
 }
 
 // ============================================================
-// OPENAI PROVIDER (STUB - Ready for implementation)
+// OPENAI PROVIDER
 // ============================================================
+
+import OpenAI from 'openai';
 
 /**
  * OpenAI sentiment provider configuration
  */
 export interface OpenAIProviderConfig {
   apiKey: string;
-  model: string;
+  model?: string;
   maxTokens?: number;
   temperature?: number;
 }
 
 /**
- * OpenAI sentiment provider
- * 
- * TODO: Implement with actual OpenAI API integration
+ * Theme extraction result from OpenAI
+ */
+export interface ExtractedTheme {
+  name: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  confidence: number;
+  keywords: string[];
+}
+
+/**
+ * Extended sentiment response with themes
+ */
+export interface SentimentWithThemes extends SentimentResponse {
+  themes: ExtractedTheme[];
+}
+
+/**
+ * OpenAI sentiment provider with real API integration
  */
 export class OpenAISentimentProvider implements ISentimentProvider {
   readonly name = 'openai';
   readonly modelVersion: string;
   
-  private config: OpenAIProviderConfig;
+  private client: OpenAI;
+  private model: string;
+  private maxTokens: number;
+  private temperature: number;
   
   constructor(config: OpenAIProviderConfig) {
-    this.config = config;
-    this.modelVersion = config.model;
+    this.client = new OpenAI({ apiKey: config.apiKey });
+    this.model = config.model || 'gpt-4o-mini';
+    this.modelVersion = this.model;
+    this.maxTokens = config.maxTokens || 500;
+    this.temperature = config.temperature || 0.1;
   }
   
   async analyze(request: SentimentRequest): Promise<SentimentResponse> {
-    // TODO: Implement actual OpenAI API call
-    // For now, fall back to stub
-    const stub = new StubSentimentProvider();
-    const result = await stub.analyze(request);
+    const startTime = Date.now();
+    
+    try {
+      const systemPrompt = `You are a sentiment analysis expert for restaurant reviews. Analyze the sentiment of the review and extract themes.
+
+Return a JSON object with this exact structure:
+{
+  "score": <number between -1 (very negative) and +1 (very positive)>,
+  "confidence": <number between 0 and 1>,
+  "category": <"positive" | "neutral" | "negative">,
+  "themes": [
+    {
+      "name": <one of: "Service", "Food Quality", "Cleanliness", "Value", "Ambiance", "Wait Time">,
+      "sentiment": <"positive" | "neutral" | "negative">,
+      "confidence": <number 0-1>,
+      "keywords": [<relevant words from the review>]
+    }
+  ]
+}
+
+Guidelines:
+- Score -1 to -0.3 = negative, -0.3 to 0.3 = neutral, 0.3 to 1 = positive
+- Only include themes that are clearly mentioned in the review
+- Be precise with sentiment scores based on the intensity of the language
+- Consider context: "not bad" is mildly positive, "could be better" is mildly negative`;
+
+      const userPrompt = `Analyze this restaurant review:
+
+"${request.content}"
+
+${request.context?.starRating ? `Star rating: ${request.context.starRating}/5` : ''}
+${request.language ? `Language: ${request.language}` : ''}`;
+
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: this.maxTokens,
+        temperature: this.temperature,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      const parsed = JSON.parse(content) as {
+        score: number;
+        confidence: number;
+        category: 'positive' | 'neutral' | 'negative';
+        themes: ExtractedTheme[];
+      };
+
+      // Clamp values to valid ranges
+      const score = Math.max(-1, Math.min(1, parsed.score));
+      const confidence = Math.max(0, Math.min(1, parsed.confidence));
+
+      return {
+        score,
+        confidence,
+        category: parsed.category,
+        modelVersion: this.modelVersion,
+        provider: this.name,
+        processingTimeMs: Date.now() - startTime,
+        rawResponse: { themes: parsed.themes },
+      };
+    } catch (error) {
+      console.error('OpenAI sentiment analysis error:', error);
+      
+      // Fall back to stub on error
+      const stub = new StubSentimentProvider();
+      const result = await stub.analyze(request);
+      return {
+        ...result,
+        provider: `${this.name}-fallback`,
+        modelVersion: this.modelVersion,
+        processingTimeMs: Date.now() - startTime,
+      };
+    }
+  }
+  
+  /**
+   * Analyze sentiment and extract themes in a single call
+   */
+  async analyzeWithThemes(request: SentimentRequest): Promise<SentimentWithThemes> {
+    const result = await this.analyze(request);
+    const themes = (result.rawResponse as { themes?: ExtractedTheme[] })?.themes || [];
+    
     return {
       ...result,
-      provider: this.name,
-      modelVersion: this.modelVersion,
+      themes,
     };
   }
   
   async analyzeBatch(requests: SentimentRequest[]): Promise<SentimentResponse[]> {
-    // TODO: Implement batch processing with OpenAI
-    return Promise.all(requests.map(r => this.analyze(r)));
+    // Process in parallel with concurrency limit
+    const BATCH_SIZE = 5;
+    const results: SentimentResponse[] = [];
+    
+    for (let i = 0; i < requests.length; i += BATCH_SIZE) {
+      const batch = requests.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(r => this.analyze(r)));
+      results.push(...batchResults);
+    }
+    
+    return results;
   }
   
   async healthCheck(): Promise<boolean> {
-    // TODO: Implement actual health check
-    return true;
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [{ role: 'user', content: 'Reply with OK' }],
+        max_tokens: 5,
+      });
+      return !!response.choices[0]?.message?.content;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -279,23 +405,35 @@ export class OpenAISentimentProvider implements ISentimentProvider {
  * Singleton sentiment service
  */
 let sentimentProvider: ISentimentProvider | null = null;
+let providerInitialized = false;
 
 /**
  * Initialize sentiment provider
  */
 export function initializeSentimentProvider(provider: ISentimentProvider): void {
   sentimentProvider = provider;
+  providerInitialized = true;
 }
 
 /**
  * Get the current sentiment provider
+ * Auto-initializes with OpenAI if API key is available
  */
 export function getSentimentProvider(): ISentimentProvider {
-  if (!sentimentProvider) {
-    // Default to stub provider
-    sentimentProvider = new StubSentimentProvider();
+  if (!providerInitialized) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    if (apiKey && apiKey !== 'sk-your-openai-api-key') {
+      console.log('🤖 Initializing OpenAI sentiment provider');
+      sentimentProvider = new OpenAISentimentProvider({ apiKey });
+    } else {
+      console.log('📝 Using stub sentiment provider (no OPENAI_API_KEY)');
+      sentimentProvider = new StubSentimentProvider();
+    }
+    providerInitialized = true;
   }
-  return sentimentProvider;
+  
+  return sentimentProvider!;
 }
 
 /**
@@ -303,6 +441,21 @@ export function getSentimentProvider(): ISentimentProvider {
  */
 export async function analyzeSentiment(request: SentimentRequest): Promise<SentimentResponse> {
   return getSentimentProvider().analyze(request);
+}
+
+/**
+ * Analyze sentiment with theme extraction (OpenAI only)
+ */
+export async function analyzeSentimentWithThemes(request: SentimentRequest): Promise<SentimentWithThemes> {
+  const provider = getSentimentProvider();
+  
+  if (provider instanceof OpenAISentimentProvider) {
+    return provider.analyzeWithThemes(request);
+  }
+  
+  // Stub fallback - no themes
+  const result = await provider.analyze(request);
+  return { ...result, themes: [] };
 }
 
 /**
@@ -319,4 +472,11 @@ export async function analyzeSentimentBatch(
  */
 export function getSentimentModelVersion(): string {
   return getSentimentProvider().modelVersion;
+}
+
+/**
+ * Check if using real AI provider
+ */
+export function isUsingAIProvider(): boolean {
+  return getSentimentProvider() instanceof OpenAISentimentProvider;
 }

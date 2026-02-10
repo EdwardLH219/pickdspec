@@ -6,3 +6,16 @@ export { ThemeScatterChart, ThemeScatterChartSkeleton } from "./theme-scatter-ch
 export { NegativeReviewsTable, NegativeReviewsTableSkeleton } from "./negative-reviews-table";
 export { BranchComparisonHeatmap, BranchComparisonHeatmapSkeleton } from "./branch-comparison-heatmap";
 export { DashboardSkeleton, ChartSkeleton, TableSkeleton } from "./dashboard-skeleton";
+
+// Rich dashboard charts
+export {
+  SentimentTrendChart as SentimentLineChart,
+  ReviewVolumeChart,
+  SentimentPieChart,
+  RatingDistributionChart,
+  ThemeRadarChart,
+  TopIssuesChart,
+  HealthGauge,
+  SourceDistributionChart,
+  WeeklyComparisonChart,
+} from "./charts";
