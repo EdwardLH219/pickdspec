@@ -128,7 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Logout
    */
   const logout = useCallback(async () => {
-    await signOut({ callbackUrl: '/login' });
+    await signOut({ redirect: false });
+    window.location.href = '/login';
   }, []);
 
   return (
