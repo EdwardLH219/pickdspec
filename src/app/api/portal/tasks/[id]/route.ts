@@ -83,7 +83,7 @@ export async function PATCH(
     return NextResponse.json(task);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: 'Validation error', details: error.issues }, { status: 400 });
     }
     console.error('Error updating task:', error);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });

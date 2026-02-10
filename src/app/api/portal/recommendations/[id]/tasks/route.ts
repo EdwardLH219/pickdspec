@@ -54,7 +54,7 @@ export async function POST(
     return NextResponse.json({ tasks, count: tasks.length }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: 'Validation error', details: error.issues }, { status: 400 });
     }
     console.error('Error creating tasks from recommendation:', error);
     return NextResponse.json({ error: 'Failed to create tasks' }, { status: 500 });

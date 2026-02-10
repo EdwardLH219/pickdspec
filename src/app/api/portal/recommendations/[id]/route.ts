@@ -92,7 +92,7 @@ export async function PATCH(
     return NextResponse.json(recommendation);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: 'Validation error', details: error.issues }, { status: 400 });
     }
     console.error('Error updating recommendation:', error);
     return NextResponse.json({ error: 'Failed to update recommendation' }, { status: 500 });
