@@ -27,28 +27,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get users who have access to this tenant via TenantUser
-    const tenantUsers = await db.tenantUser.findMany({
-      where: { tenantId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            image: true,
-          },
-        },
+    // Get users who have access to this tenant via tenantAccess array
+    const users = await db.user.findMany({
+      where: {
+        tenantAccess: { has: tenantId },
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        image: true,
+        role: true,
       },
     });
 
-    const members = tenantUsers.map(tu => ({
-      id: tu.user.id,
-      email: tu.user.email,
-      name: [tu.user.firstName, tu.user.lastName].filter(Boolean).join(' ') || tu.user.email,
-      image: tu.user.image,
-      role: tu.role,
+    const members = users.map(user => ({
+      id: user.id,
+      email: user.email,
+      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email,
+      image: user.image,
+      role: user.role,
     }));
 
     return NextResponse.json({ members });
