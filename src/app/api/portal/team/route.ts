@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
   }
 
-  if (!hasTenantAccess(session.user, tenantId, 'read')) {
+  if (!hasTenantAccess(session.user, tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

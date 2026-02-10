@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Check access
-  if (!hasTenantAccess(session.user, tenantId, 'read')) {
+  if (!hasTenantAccess(session.user, tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check write access
-    if (!hasTenantAccess(session.user, tenantId, 'write')) {
+    if (!hasTenantAccess(session.user, tenantId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

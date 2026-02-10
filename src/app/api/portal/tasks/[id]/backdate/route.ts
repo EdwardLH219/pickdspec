@@ -35,7 +35,7 @@ export async function POST(
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  if (!hasTenantAccess(session.user, task.tenantId, 'write')) {
+  if (!hasTenantAccess(session.user, task.tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

@@ -37,7 +37,7 @@ export async function POST(
     return NextResponse.json({ error: 'Recommendation not found' }, { status: 404 });
   }
 
-  if (!hasTenantAccess(session.user, recommendation.tenantId, 'write')) {
+  if (!hasTenantAccess(session.user, recommendation.tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

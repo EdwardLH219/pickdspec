@@ -42,7 +42,7 @@ export async function GET(
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  if (!hasTenantAccess(session.user, task.tenantId, 'read')) {
+  if (!hasTenantAccess(session.user, task.tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -70,7 +70,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  if (!hasTenantAccess(session.user, existing.tenantId, 'write')) {
+  if (!hasTenantAccess(session.user, existing.tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -110,7 +110,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  if (!hasTenantAccess(session.user, existing.tenantId, 'write')) {
+  if (!hasTenantAccess(session.user, existing.tenantId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
