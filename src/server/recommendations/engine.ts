@@ -78,6 +78,13 @@ const ACTION_TEMPLATES: Record<ThemeCategory, string[]> = {
     'Create loyalty program or special offers',
     'Highlight value propositions in marketing',
   ],
+  [ThemeCategory.LOCATION]: [
+    'Review parking availability and signage',
+    'Assess accessibility for customers',
+    'Evaluate exterior appearance and curb appeal',
+    'Consider visibility improvements or better signage',
+    'Analyze foot traffic patterns and optimize entry',
+  ],
   [ThemeCategory.AMBIANCE]: [
     'Conduct facility walkthrough assessment',
     'Review lighting, music, and temperature settings',
