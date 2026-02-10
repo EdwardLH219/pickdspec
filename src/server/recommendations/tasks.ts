@@ -249,9 +249,10 @@ async function triggerFixScoreCalculation(taskId: string, tenantId: string, them
   logger.info({
     taskId,
     themeId,
-    fixScore: result.fixScore,
-    deltaS: result.deltaS,
-    confidence: result.confidenceLevel,
+    fixScoreId: result.id,
+    fixScore: result.result.fixScore,
+    deltaS: result.result.deltaS,
+    confidence: result.result.confidenceLevel,
   }, 'FixScore calculated for completed task');
 
   return result;
