@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       where: { tenantId },
       include: { 
         theme: { select: { id: true, name: true } },
-        fixScore: true,
+        fixScores: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
