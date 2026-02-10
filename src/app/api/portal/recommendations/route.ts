@@ -129,6 +129,8 @@ export async function GET(request: NextRequest) {
           themeScore010: true,
           severity: true,
           mentionCount: true,
+          negativeCount: true,
+          neutralCount: true,
         },
       })
     : [];
@@ -155,7 +157,7 @@ export async function GET(request: NextRequest) {
       severity: severityToNumeric[rec.severity],
       sentiment: themeScore?.themeSentiment ?? 0,
       score010: themeScore?.themeScore010 ?? 5,
-      mentions: themeScore?.mentionCount ?? 0,
+      mentions: (themeScore?.negativeCount ?? 0) + (themeScore?.neutralCount ?? 0),
       suggestedActions: rec.suggestedActions as string[],
       estimatedImpact: rec.estimatedImpact,
       taskCount,

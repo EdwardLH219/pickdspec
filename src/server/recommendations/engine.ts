@@ -20,7 +20,9 @@ interface ThemeScoreData {
   themeSentiment: number;
   themeScore010: number;
   severity: number;
-  mentionCount: number;
+  mentionCount: number;      // Total mentions (all sentiments)
+  negativeCount: number;     // Negative mentions only
+  neutralCount: number;      // Neutral mentions
 }
 
 interface GeneratedRecommendation {
@@ -41,11 +43,12 @@ interface GeneratedRecommendation {
 // THRESHOLDS & CONFIGURATION
 // ============================================================
 
+// minMentions refers to non-positive (negative + neutral) mentions
 const SEVERITY_THRESHOLDS = {
-  CRITICAL: { maxScore: 5.0, minMentions: 10 },  // Score < 5 with 10+ mentions - serious issue
-  HIGH: { maxScore: 6.5, minMentions: 5 },       // Score < 6.5 with 5+ mentions - needs attention
-  MEDIUM: { maxScore: 7.5, minMentions: 3 },     // Score < 7.5 with 3+ mentions - room for improvement
-  LOW: { maxScore: 8.5, minMentions: 2 },        // Score < 8.5 with 2+ mentions - minor opportunity
+  CRITICAL: { maxScore: 5.0, minMentions: 10 },  // Score < 5 with 10+ non-positive mentions - serious issue
+  HIGH: { maxScore: 6.5, minMentions: 5 },       // Score < 6.5 with 5+ non-positive mentions - needs attention
+  MEDIUM: { maxScore: 7.5, minMentions: 3 },     // Score < 7.5 with 3+ non-positive mentions - room for improvement
+  LOW: { maxScore: 8.5, minMentions: 2 },        // Score < 8.5 with 2+ non-positive mentions - minor opportunity
 };
 
 // Action templates by theme category
@@ -105,19 +108,20 @@ const ACTION_TEMPLATES: Record<ThemeCategory, string[]> = {
 // ============================================================
 
 /**
- * Determine severity based on score and mention count
+ * Determine severity based on score and non-positive mention count
+ * Negative + neutral mentions indicate issues or areas needing improvement
  */
-function determineSeverity(score010: number, mentions: number): RecommendationSeverity | null {
-  if (score010 < SEVERITY_THRESHOLDS.CRITICAL.maxScore && mentions >= SEVERITY_THRESHOLDS.CRITICAL.minMentions) {
+function determineSeverity(score010: number, nonPositiveMentions: number): RecommendationSeverity | null {
+  if (score010 < SEVERITY_THRESHOLDS.CRITICAL.maxScore && nonPositiveMentions >= SEVERITY_THRESHOLDS.CRITICAL.minMentions) {
     return RecommendationSeverity.CRITICAL;
   }
-  if (score010 < SEVERITY_THRESHOLDS.HIGH.maxScore && mentions >= SEVERITY_THRESHOLDS.HIGH.minMentions) {
+  if (score010 < SEVERITY_THRESHOLDS.HIGH.maxScore && nonPositiveMentions >= SEVERITY_THRESHOLDS.HIGH.minMentions) {
     return RecommendationSeverity.HIGH;
   }
-  if (score010 < SEVERITY_THRESHOLDS.MEDIUM.maxScore && mentions >= SEVERITY_THRESHOLDS.MEDIUM.minMentions) {
+  if (score010 < SEVERITY_THRESHOLDS.MEDIUM.maxScore && nonPositiveMentions >= SEVERITY_THRESHOLDS.MEDIUM.minMentions) {
     return RecommendationSeverity.MEDIUM;
   }
-  if (score010 < SEVERITY_THRESHOLDS.LOW.maxScore && mentions >= SEVERITY_THRESHOLDS.LOW.minMentions) {
+  if (score010 < SEVERITY_THRESHOLDS.LOW.maxScore && nonPositiveMentions >= SEVERITY_THRESHOLDS.LOW.minMentions) {
     return RecommendationSeverity.LOW;
   }
   return null; // No recommendation needed - theme is doing well
@@ -140,11 +144,12 @@ function generateTitle(themeName: string, severity: RecommendationSeverity): str
  * Generate description based on theme data
  */
 function generateDescription(theme: ThemeScoreData, severity: RecommendationSeverity): string {
+  const nonPositiveCount = theme.negativeCount + theme.neutralCount;
   const sentimentDesc = theme.themeSentiment < -0.5 ? 'very negative' :
                         theme.themeSentiment < 0 ? 'negative' :
                         theme.themeSentiment < 0.3 ? 'mixed' : 'below target';
   
-  return `${theme.themeName} has a score of ${theme.themeScore010.toFixed(1)}/10 based on ${theme.mentionCount} reviews. ` +
+  return `${theme.themeName} has a score of ${theme.themeScore010.toFixed(1)}/10 based on ${nonPositiveCount} reviews. ` +
          `Customer sentiment is ${sentimentDesc}. ` +
          `This ${severity.toLowerCase()} severity issue requires attention to prevent impact on overall ratings.`;
 }
@@ -250,9 +255,13 @@ export async function generateRecommendationsFromScoreRun(
       themeScore010: ts.themeScore010,
       severity: ts.severity,
       mentionCount: ts.mentionCount,
+      negativeCount: ts.negativeCount,
+      neutralCount: ts.neutralCount,
     };
 
-    const severity = determineSeverity(themeData.themeScore010, themeData.mentionCount);
+    // Use negative + neutral mentions for severity determination (not total mentions)
+    const nonPositiveCount = themeData.negativeCount + themeData.neutralCount;
+    const severity = determineSeverity(themeData.themeScore010, nonPositiveCount);
     
     if (!severity) {
       // Theme is performing well, no recommendation needed
@@ -275,7 +284,7 @@ export async function generateRecommendationsFromScoreRun(
         suggestedActions: getSuggestedActions(themeData.themeCategory, severity),
         evidenceReviewIds,
         estimatedImpact: estimateImpact(themeData),
-        triggerReason: `Score ${themeData.themeScore010.toFixed(1)}/10 with ${themeData.mentionCount} mentions`,
+        triggerReason: `Score ${themeData.themeScore010.toFixed(1)}/10 with ${nonPositiveCount} non-positive mentions`,
         triggerThreshold: SEVERITY_THRESHOLDS[severity].maxScore,
         autoGenerated: true,
       },

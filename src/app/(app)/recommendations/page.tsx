@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useBranch } from "@/hooks/use-branch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -453,8 +454,13 @@ export default function RecommendationsPage() {
                     <span className="font-medium">{rec.score010.toFixed(1)}/10</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Mentions:</span>{" "}
-                    <span className="font-medium">{rec.mentions}</span>
+                    <span className="text-muted-foreground">Issues:</span>{" "}
+                    <Link 
+                      href={`/reports?themeId=${rec.themeId}&themeName=${encodeURIComponent(rec.themeName)}&sentiment=non-positive`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {rec.mentions} reviews →
+                    </Link>
                   </div>
                 </div>
 
@@ -513,7 +519,14 @@ export default function RecommendationsPage() {
                   <div>
                     <p className="font-medium text-sm">{selectedRec?.title}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {selectedRec?.themeName} • Score: {selectedRec?.score010.toFixed(1)}/10 • {selectedRec?.mentions} mentions
+                      {selectedRec?.themeName} • Score: {selectedRec?.score010.toFixed(1)}/10 •{" "}
+                      <Link 
+                        href={`/reports?themeId=${selectedRec?.themeId}&themeName=${encodeURIComponent(selectedRec?.themeName || '')}&sentiment=non-positive`}
+                        className="text-primary hover:underline"
+                        onClick={() => setCreateTaskOpen(false)}
+                      >
+                        {selectedRec?.mentions} reviews with issues →
+                      </Link>
                     </p>
                   </div>
                 </div>

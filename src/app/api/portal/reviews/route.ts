@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const tenantId = searchParams.get('tenantId');
     const sourceType = searchParams.get('source') as SourceType | null;
     const themeId = searchParams.get('themeId');
-    const sentiment = searchParams.get('sentiment'); // positive, neutral, negative
+    const sentiment = searchParams.get('sentiment'); // positive, neutral, negative, non-positive
     const minRating = searchParams.get('minRating');
     const maxRating = searchParams.get('maxRating');
     const dateFrom = searchParams.get('dateFrom');
@@ -122,6 +122,7 @@ export async function GET(request: NextRequest) {
         if (sentiment === 'positive') return score > 0.3;
         if (sentiment === 'negative') return score < -0.3;
         if (sentiment === 'neutral') return score >= -0.3 && score <= 0.3;
+        if (sentiment === 'non-positive') return score <= 0.3; // negative + neutral
         return true;
       });
     }

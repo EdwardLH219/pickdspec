@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useBranch } from "@/hooks/use-branch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,6 +86,7 @@ interface ThemeBreakdownItem {
 
 export default function ReportsPage() {
   const { selectedTenantId, selectedTenant, isLoading: branchLoading, getDateRange } = useBranch();
+  const searchParams = useSearchParams();
   
   // Review Explorer state
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -94,9 +96,25 @@ export default function ReportsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sentimentFilter, setSentimentFilter] = useState("all");
+  const [themeFilter, setThemeFilter] = useState<string | null>(null);
+  const [themeName, setThemeName] = useState<string | null>(null);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Initialize filters from URL params
+  useEffect(() => {
+    const themeId = searchParams.get('themeId');
+    const theme = searchParams.get('themeName');
+    const sentiment = searchParams.get('sentiment');
+    if (themeId) {
+      setThemeFilter(themeId);
+      setThemeName(theme);
+    }
+    if (sentiment && ['positive', 'neutral', 'negative', 'non-positive'].includes(sentiment)) {
+      setSentimentFilter(sentiment);
+    }
+  }, [searchParams]);
   
   // Theme Breakdown state
   const [themes, setThemes] = useState<ThemeBreakdownItem[]>([]);
@@ -115,6 +133,7 @@ export default function ReportsPage() {
       if (sourceFilter !== "all") params.set("source", sourceFilter);
       if (sentimentFilter !== "all") params.set("sentiment", sentimentFilter);
       if (searchQuery) params.set("search", searchQuery);
+      if (themeFilter) params.set("themeId", themeFilter);
 
       const res = await fetch(`/api/portal/reviews?${params}`);
       if (res.ok) {
@@ -155,13 +174,13 @@ export default function ReportsPage() {
     }
   };
 
-  // Fetch data when tenant changes
+  // Fetch data when tenant or theme filter changes
   useEffect(() => {
     if (selectedTenantId) {
       fetchReviews();
       fetchThemes();
     }
-  }, [selectedTenantId]);
+  }, [selectedTenantId, themeFilter]);
 
   // CSV Export
   const exportCSV = async () => {
@@ -203,9 +222,13 @@ export default function ReportsPage() {
     setSearchQuery("");
     setSourceFilter("all");
     setSentimentFilter("all");
+    setThemeFilter(null);
+    setThemeName(null);
+    // Clear URL params
+    window.history.replaceState({}, '', '/reports');
   };
 
-  const hasActiveFilters = searchQuery || sourceFilter !== "all" || sentimentFilter !== "all";
+  const hasActiveFilters = searchQuery || sourceFilter !== "all" || sentimentFilter !== "all" || themeFilter;
 
   const getSentimentBadge = (sentiment: number | null) => {
     if (sentiment === null) return <Badge variant="outline">Unknown</Badge>;
@@ -304,6 +327,35 @@ export default function ReportsPage() {
 
         {/* Review Explorer Tab */}
         <TabsContent value="explorer" className="space-y-4">
+          {/* Theme Filter Banner */}
+          {themeFilter && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="py-3 px-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <PieChart className="h-4 w-4 text-primary" />
+                    <span className="text-sm">
+                      Showing {sentimentFilter !== 'all' ? <strong>{sentimentFilter}</strong> : ''} reviews mentioning: <strong>{themeName || 'Selected theme'}</strong>
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setThemeFilter(null);
+                      setThemeName(null);
+                      setSentimentFilter('all');
+                      window.history.replaceState({}, '', '/reports');
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear filter
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Filters */}
           <Card>
             <CardContent className="p-4">
@@ -344,6 +396,7 @@ export default function ReportsPage() {
                     <SelectItem value="positive">Positive</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
                     <SelectItem value="negative">Negative</SelectItem>
+                    <SelectItem value="non-positive">Non-Positive</SelectItem>
                   </SelectContent>
                 </Select>
 
