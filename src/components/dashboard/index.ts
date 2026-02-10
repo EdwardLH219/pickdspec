@@ -5,6 +5,7 @@ export { SourceSentimentChart, SourceSentimentChartSkeleton } from "./source-sen
 export { ThemeScatterChart, ThemeScatterChartSkeleton } from "./theme-scatter-chart";
 export { NegativeReviewsTable, NegativeReviewsTableSkeleton } from "./negative-reviews-table";
 export { BranchComparisonHeatmap, BranchComparisonHeatmapSkeleton } from "./branch-comparison-heatmap";
+export { BranchComparisonChart } from "./branch-comparison-chart";
 export { DashboardSkeleton, ChartSkeleton, TableSkeleton } from "./dashboard-skeleton";
 
 // Rich dashboard charts

@@ -20,14 +20,17 @@ export function BranchSwitcher() {
 
   return (
     <Select
-      value={selectedBranchId ?? undefined}
-      onValueChange={(value) => setSelectedBranchId(value)}
+      value={selectedBranchId ?? "all"}
+      onValueChange={(value) => setSelectedBranchId(value === "all" ? null : value)}
     >
       <SelectTrigger className="w-[200px]">
         <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
         <SelectValue placeholder="Select branch" />
       </SelectTrigger>
       <SelectContent>
+        {branches.length > 1 && (
+          <SelectItem value="all">All Branches</SelectItem>
+        )}
         {branches.map((branch) => (
           <SelectItem key={branch.id} value={branch.id}>
             {branch.name}

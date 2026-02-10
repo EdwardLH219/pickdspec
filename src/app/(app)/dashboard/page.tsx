@@ -12,6 +12,7 @@ import {
   HealthGauge,
   SourceDistributionChart,
   WeeklyComparisonChart,
+  BranchComparisonChart,
 } from "@/components/dashboard";
 import {
   SentimentTrendChart as SentimentLineChart,
@@ -32,6 +33,7 @@ import {
   Minus,
   Activity,
   Target,
+  Building2,
 } from "lucide-react";
 
 interface DashboardData {
@@ -115,12 +117,66 @@ interface CompletedTask {
   themeName?: string;
 }
 
+interface ComparisonData {
+  hasData: boolean;
+  message?: string;
+  branches: Array<{
+    id: string;
+    name: string;
+    avgScore: number;
+    totalMentions: number;
+    themeCount: number;
+  }>;
+  themes: Array<{
+    id: string;
+    name: string;
+    category: string;
+  }>;
+  comparison: Array<{
+    themeId: string;
+    themeName: string;
+    category: string;
+    branchScores: Record<string, { score: number; sentiment: number; mentions: number }>;
+  }>;
+}
+
 export default function DashboardPage() {
   const { selectedTenantId, selectedTenant, isLoading: branchLoading } = useBranch();
   const [data, setData] = useState<DashboardData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
+  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch comparison data when "All Branches" is selected
+  useEffect(() => {
+    async function fetchComparison() {
+      if (selectedTenantId) {
+        // A specific tenant is selected, skip comparison fetch
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch('/api/portal/dashboard/compare');
+        if (res.ok) {
+          const data = await res.json();
+          setComparisonData(data);
+        } else {
+          const err = await res.json();
+          setError(err.error || 'Failed to load comparison data');
+        }
+      } catch {
+        setError('Failed to load comparison data');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchComparison();
+  }, [selectedTenantId]);
 
   // Fetch dashboard data and completed tasks when tenant changes
   useEffect(() => {
@@ -232,17 +288,56 @@ export default function DashboardPage() {
   }
 
   if (!selectedTenantId) {
+    // Show comparison view for "All Branches"
+    if (isLoading) {
+      return <DashboardSkeleton />;
+    }
+
+    if (error) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              All Branches
+            </p>
+          </div>
+          <Card className="border-destructive">
+            <CardContent className="py-12 text-center">
+              <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <p className="text-destructive">{error}</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Select a branch to view dashboard</p>
+          <p className="text-muted-foreground flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            All Branches - Comparison View
+          </p>
         </div>
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Please select a branch from the dropdown above.</p>
-          </CardContent>
-        </Card>
+
+        {comparisonData?.hasData ? (
+          <BranchComparisonChart
+            branches={comparisonData.branches}
+            comparison={comparisonData.comparison}
+          />
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {comparisonData?.message || 'No comparison data available. Run scoring on multiple branches to see comparison.'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   }
