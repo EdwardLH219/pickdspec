@@ -387,6 +387,19 @@ async function main() {
         lastSyncedAt: new Date(),
       },
     });
+
+    // CSV Upload connector (WEBSITE type)
+    await prisma.connector.upsert({
+      where: { tenantId_sourceType: { tenantId: branchId, sourceType: SourceType.WEBSITE } },
+      update: {},
+      create: {
+        tenantId: branchId,
+        sourceType: SourceType.WEBSITE,
+        name: `CSV Import - ${branch.name}`,
+        status: ConnectorStatus.ACTIVE,
+        syncFrequency: SyncFrequency.MANUAL,
+      },
+    });
   }
   console.log(`  ✓ Created connectors for ${createdBranches.length} branches`);
 
