@@ -15,6 +15,24 @@ import { DataSourceActions } from './components/data-source-actions';
 import { RunScoringButton } from './components/run-scoring-button';
 import { InitializeConnectorsButton } from './components/initialize-connectors-button';
 
+// Format source type for display
+const formatSourceType = (source: string): string => {
+  const sourceMap: Record<string, string> = {
+    'GOOGLE': 'Google',
+    'GOOGLE_OUTSCRAPER': 'Google (API)',
+    'HELLOPETER': 'HelloPeter',
+    'FACEBOOK': 'Facebook',
+    'TRIPADVISOR': 'TripAdvisor',
+    'YELP': 'Yelp',
+    'ZOMATO': 'Zomato',
+    'OPENTABLE': 'OpenTable',
+    'WEBSITE': 'Website',
+    'INSTAGRAM': 'Instagram',
+    'TWITTER': 'Twitter',
+  };
+  return sourceMap[source] || source;
+};
+
 export default async function DataSourcesPage() {
   const session = await auth();
   
@@ -112,7 +130,7 @@ export default async function DataSourcesPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium">{connector.name}</h3>
-                          <Badge variant="outline">{connector.sourceType}</Badge>
+                          <Badge variant="outline">{formatSourceType(connector.sourceType)}</Badge>
                           <Badge variant={connector.isActive ? 'default' : 'secondary'}>
                             {connector.isActive ? 'Active' : 'Inactive'}
                           </Badge>
@@ -221,7 +239,7 @@ export default async function DataSourcesPage() {
                     <div>
                       <p className="font-medium text-sm">{run.connector.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {run.connector.sourceType} • {run.runType}
+                        {formatSourceType(run.connector.sourceType)} • {run.runType}
                       </p>
                     </div>
                   </div>

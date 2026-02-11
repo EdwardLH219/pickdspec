@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       syncFrequency: SyncFrequency;
     }> = [
       { sourceType: SourceType.GOOGLE, name: 'Google Reviews', syncFrequency: SyncFrequency.MANUAL },
-      { sourceType: SourceType.GOOGLE_OUTSCRAPER, name: 'Google (Outscraper)', syncFrequency: SyncFrequency.MANUAL },
+      { sourceType: SourceType.GOOGLE_OUTSCRAPER, name: 'Google (API)', syncFrequency: SyncFrequency.MANUAL },
       { sourceType: SourceType.HELLOPETER, name: 'HelloPeter', syncFrequency: SyncFrequency.MANUAL },
       { sourceType: SourceType.FACEBOOK, name: 'Facebook', syncFrequency: SyncFrequency.MANUAL },
       { sourceType: SourceType.TRIPADVISOR, name: 'TripAdvisor', syncFrequency: SyncFrequency.MANUAL },

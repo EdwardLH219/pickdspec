@@ -227,7 +227,7 @@ function transformReview(
 
 export class OutscraperConnector extends BaseConnector {
   readonly sourceType = SourceType.GOOGLE_OUTSCRAPER;
-  readonly displayName = 'Google Reviews (Outscraper)';
+  readonly displayName = 'Google Reviews (API)';
   readonly supportsAutoSync = false;
   readonly requiresUpload = true;
   
@@ -418,8 +418,8 @@ export class OutscraperConnector extends BaseConnector {
 
 // Register the connector
 registerConnector(SourceType.GOOGLE_OUTSCRAPER, {
-  displayName: 'Google Reviews (Outscraper)',
-  description: 'Import Google reviews from Outscraper JSON export with rich metadata',
+  displayName: 'Google Reviews (API)',
+  description: 'Import Google reviews from JSON export with rich metadata',
   supportsAutoSync: false,
   requiresUpload: true,
   factory: (connectorId, config) => new OutscraperConnector(connectorId, config),

@@ -189,7 +189,7 @@ export function getConnectorsForUI(): Array<{
     description: string;
   }> = [
     { sourceType: 'GOOGLE', displayName: 'Google Reviews', description: 'Import reviews from Google Business Profile' },
-    { sourceType: 'GOOGLE_OUTSCRAPER', displayName: 'Google (Outscraper)', description: 'Import Google reviews via Outscraper JSON export' },
+    { sourceType: 'GOOGLE_OUTSCRAPER', displayName: 'Google (API)', description: 'Import Google reviews via JSON export' },
     { sourceType: 'HELLOPETER', displayName: 'HelloPeter', description: 'Import reviews from HelloPeter.com' },
     { sourceType: 'FACEBOOK', displayName: 'Facebook', description: 'Import reviews from Facebook Page' },
     { sourceType: 'TRIPADVISOR', displayName: 'TripAdvisor', description: 'Import reviews from TripAdvisor' },

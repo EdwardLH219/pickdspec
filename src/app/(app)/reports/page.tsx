@@ -46,6 +46,24 @@ import {
   Star,
 } from "lucide-react";
 
+// Format source type for display
+const formatSourceType = (source: string): string => {
+  const sourceMap: Record<string, string> = {
+    'GOOGLE': 'Google',
+    'GOOGLE_OUTSCRAPER': 'Google (API)',
+    'HELLOPETER': 'HelloPeter',
+    'FACEBOOK': 'Facebook',
+    'TRIPADVISOR': 'TripAdvisor',
+    'YELP': 'Yelp',
+    'ZOMATO': 'Zomato',
+    'OPENTABLE': 'OpenTable',
+    'WEBSITE': 'Website',
+    'INSTAGRAM': 'Instagram',
+    'TWITTER': 'Twitter',
+  };
+  return sourceMap[source] || source;
+};
+
 interface Review {
   id: string;
   content: string;
@@ -490,7 +508,7 @@ export default function ReportsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{review.source}</Badge>
+                        <Badge variant="secondary">{formatSourceType(review.source)}</Badge>
                       </TableCell>
                       <TableCell>{renderStars(review.rating)}</TableCell>
                       <TableCell>{getSentimentBadge(review.sentiment)}</TableCell>
@@ -629,7 +647,7 @@ export default function ReportsPage() {
           <DialogHeader>
             <DialogTitle>Review Details</DialogTitle>
             <DialogDescription>
-              {selectedReview?.source} • {selectedReview?.reviewDate && new Date(selectedReview.reviewDate).toLocaleDateString()}
+              {selectedReview?.source && formatSourceType(selectedReview.source)} • {selectedReview?.reviewDate && new Date(selectedReview.reviewDate).toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
           
