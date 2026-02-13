@@ -46,6 +46,12 @@ import {
   TrendingDown,
   HelpCircle,
   Info,
+  DollarSign,
+  Users,
+  MousePointer,
+  Repeat,
+  Lightbulb,
+  Sparkles,
 } from "lucide-react";
 import {
   LineChart,
@@ -61,6 +67,20 @@ import {
 } from "recharts";
 
 type StatusFilter = "all" | "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+interface ValueRange {
+  min: number;
+  max: number;
+  mid: number;
+}
+
+interface TaskEconomicImpact {
+  revenueUpside: ValueRange | null;
+  footfallUpside: { min: number; max: number } | null;
+  impactDriver: 'ACQUISITION' | 'CONVERSION' | 'RETENTION';
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
+  currency: string;
+}
 
 interface Task {
   id: string;
@@ -88,6 +108,7 @@ interface Task {
     calculatedAt: string;
   } | null;
   isOverdue: boolean;
+  economicImpact: TaskEconomicImpact | null;
 }
 
 interface Stats {
@@ -323,6 +344,53 @@ function TasksContent() {
       case 'MEDIUM': return <Badge variant="default">Medium</Badge>;
       case 'LOW': return <Badge variant="secondary">Low</Badge>;
       default: return null;
+    }
+  };
+
+  // Format currency for display
+  const formatCurrency = (value: number, currency: string = 'ZAR') => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Format range for display
+  const formatRange = (range: ValueRange | null, currency: string = 'ZAR') => {
+    if (!range) return null;
+    if (range.min === range.max) {
+      return formatCurrency(range.mid, currency);
+    }
+    return `${formatCurrency(range.min, currency)} - ${formatCurrency(range.max, currency)}`;
+  };
+
+  // Get impact driver icon and label
+  const getImpactDriverInfo = (driver: string) => {
+    switch (driver) {
+      case 'ACQUISITION':
+        return { icon: Users, label: 'New Customer Acquisition', description: 'Affects visibility and first impressions' };
+      case 'CONVERSION':
+        return { icon: MousePointer, label: 'Online Conversion', description: 'Affects clicks to visits' };
+      case 'RETENTION':
+        return { icon: Repeat, label: 'Customer Retention', description: 'Affects repeat visits and word-of-mouth' };
+      default:
+        return { icon: Info, label: 'General Impact', description: '' };
+    }
+  };
+
+  // Get confidence badge variant
+  const getConfidenceBadge = (level: string) => {
+    switch (level) {
+      case 'HIGH':
+        return { variant: 'default' as const, label: 'High' };
+      case 'MEDIUM':
+        return { variant: 'secondary' as const, label: 'Medium' };
+      case 'LOW':
+        return { variant: 'outline' as const, label: 'Low' };
+      default:
+        return { variant: 'outline' as const, label: 'N/A' };
     }
   };
 
@@ -647,7 +715,7 @@ function TasksContent() {
 
       {/* Task Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedTask?.title}</DialogTitle>
             <DialogDescription>
@@ -890,6 +958,90 @@ function TasksContent() {
                 </Card>
               )}
 
+              {/* Economic Impact Panel */}
+              {selectedTask.economicImpact && selectedTask.economicImpact.revenueUpside && (
+                <Card className="bg-green-50/50 border-green-200">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-green-600" />
+                      Revenue Impact
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* Revenue Upside */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-green-500" />
+                        <span className="text-sm text-muted-foreground">Potential Upside</span>
+                      </div>
+                      <span className="font-semibold text-green-600">
+                        {formatRange(selectedTask.economicImpact.revenueUpside, selectedTask.economicImpact.currency)}
+                        <span className="text-xs font-normal text-muted-foreground">/mo</span>
+                      </span>
+                    </div>
+                    
+                    {/* Impact Driver */}
+                    {selectedTask.economicImpact.impactDriver && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Impact Driver</span>
+                        <div className="flex items-center gap-1.5">
+                          {(() => {
+                            const info = getImpactDriverInfo(selectedTask.economicImpact!.impactDriver);
+                            const Icon = info.icon;
+                            return (
+                              <>
+                                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-sm">{info.label}</span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Confidence */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Estimate Confidence</span>
+                      <Badge variant={getConfidenceBadge(selectedTask.economicImpact.confidenceLevel).variant}>
+                        {getConfidenceBadge(selectedTask.economicImpact.confidenceLevel).label}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Activation Suggestions */}
+              {selectedTask.recommendationTitle && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4 text-amber-500" />
+                      Activation Suggestions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-sm">
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground mt-0.5">•</span>
+                        <span>Brief your team on the specific issue from customer feedback</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground mt-0.5">•</span>
+                        <span>Set clear success criteria and check back in 2 weeks</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground mt-0.5">•</span>
+                        <span>Respond to recent negative reviews mentioning this issue</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-muted-foreground mt-0.5">•</span>
+                        <span>Consider adding a feedback card to track improvement</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Quick Actions */}
               {selectedTask.status !== 'COMPLETED' && selectedTask.status !== 'CANCELLED' && (
                 <div className="flex gap-2">
@@ -908,6 +1060,43 @@ function TasksContent() {
                       Start Task
                     </Button>
                   )}
+                </div>
+              )}
+
+              {/* Generate Activations for completed tasks with positive impact */}
+              {selectedTask.status === 'COMPLETED' && 
+               selectedTask.fixScore?.status === 'available' && 
+               (selectedTask.fixScore.deltaS ?? 0) > 0.1 && (
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    This task improved sentiment - generate marketing content to capitalize on it.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/portal/activations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ taskId: selectedTask.id }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          toast.success(`Generated ${data.drafts.length} activation drafts`, {
+                            description: 'View them in the Activations page',
+                          });
+                        } else {
+                          const error = await res.json();
+                          toast.error(error.error || 'Failed to generate drafts');
+                        }
+                      } catch {
+                        toast.error('Failed to generate activation drafts');
+                      }
+                    }}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Marketing Drafts
+                  </Button>
                 </div>
               )}
             </div>

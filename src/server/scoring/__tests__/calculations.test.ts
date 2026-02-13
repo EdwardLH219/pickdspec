@@ -80,6 +80,24 @@ const createTestParams = (overrides: Partial<ParameterSet> = {}): ParameterSet =
     confidence_thresholds: { high: 10, medium: 5, low: 2 },
     ...overrides.fix_tracking,
   },
+  economic: {
+    enabled: true,
+    theme_economic_weights: {
+      PRODUCT: { revenue_weight: 1.5, footfall_weight: 1.2, conversion_weight: 1.3 },
+      SERVICE: { revenue_weight: 1.2, footfall_weight: 1.5, conversion_weight: 1.4 },
+      VALUE: { revenue_weight: 1.3, footfall_weight: 1.3, conversion_weight: 1.2 },
+      AMBIANCE: { revenue_weight: 0.9, footfall_weight: 1.0, conversion_weight: 1.4 },
+      CLEANLINESS: { revenue_weight: 1.1, footfall_weight: 1.6, conversion_weight: 1.3 },
+      LOCATION: { revenue_weight: 0.8, footfall_weight: 0.9, conversion_weight: 1.0 },
+      OTHER: { revenue_weight: 1.0, footfall_weight: 1.0, conversion_weight: 1.0 },
+    },
+    rating_to_revenue_elasticity: { min: 0.05, max: 0.09 },
+    rating_to_click_elasticity: { min: 0.03, max: 0.07 },
+    click_to_visit_conversion_rate: 0.15,
+    min_data_for_roi_claim: { min_reviews: 20, min_days: 30, min_themes: 3 },
+    confidence_display_thresholds: { high: 0.8, medium: 0.5 },
+    ...overrides.economic,
+  },
   ...overrides,
 });
 

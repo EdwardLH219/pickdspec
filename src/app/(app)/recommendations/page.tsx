@@ -40,8 +40,28 @@ import {
   Calendar,
   User,
   ListChecks,
+  TrendingDown,
+  TrendingUp,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
+
+interface ValueRange {
+  min: number;
+  max: number;
+  mid: number;
+}
+
+interface EconomicImpact {
+  revenueAtRisk: ValueRange | null;
+  revenueUpside: ValueRange | null;
+  footfallAtRisk: { min: number; max: number } | null;
+  footfallUpside: { min: number; max: number } | null;
+  impactDriver: 'ACQUISITION' | 'CONVERSION' | 'RETENTION';
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
+  dataQualityScore: number | null;
+  currency: string;
+}
 
 interface Recommendation {
   id: string;
@@ -61,6 +81,7 @@ interface Recommendation {
   taskCount: number;
   pendingTaskCount: number;
   createdAt: string;
+  economicImpact: EconomicImpact | null;
 }
 
 interface Stats {
@@ -246,6 +267,39 @@ export default function RecommendationsPage() {
     if (severity >= 4) return 'text-red-600';
     if (severity >= 2) return 'text-yellow-600';
     return 'text-green-600';
+  };
+
+  // Format currency for display
+  const formatCurrency = (value: number, currency: string = 'ZAR') => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Format range for display
+  const formatRange = (range: ValueRange | null, currency: string = 'ZAR') => {
+    if (!range) return null;
+    if (range.min === range.max) {
+      return formatCurrency(range.mid, currency);
+    }
+    return `${formatCurrency(range.min, currency)} - ${formatCurrency(range.max, currency)}`;
+  };
+
+  // Get confidence badge variant
+  const getConfidenceBadge = (level: string) => {
+    switch (level) {
+      case 'HIGH':
+        return { variant: 'default' as const, label: 'High confidence' };
+      case 'MEDIUM':
+        return { variant: 'secondary' as const, label: 'Medium confidence' };
+      case 'LOW':
+        return { variant: 'outline' as const, label: 'Low confidence' };
+      default:
+        return { variant: 'outline' as const, label: 'Insufficient data' };
+    }
   };
 
   if (branchLoading) {
@@ -464,6 +518,47 @@ export default function RecommendationsPage() {
                   </div>
                 </div>
 
+                {/* Economic Impact */}
+                {rec.economicImpact && (rec.economicImpact.revenueAtRisk || rec.economicImpact.revenueUpside) && (
+                  <div className="bg-muted/50 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        Estimated Impact
+                      </span>
+                      <Badge variant={getConfidenceBadge(rec.economicImpact.confidenceLevel).variant} className="text-xs">
+                        {getConfidenceBadge(rec.economicImpact.confidenceLevel).label}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {rec.economicImpact.revenueAtRisk && (
+                        <div className="flex items-start gap-2">
+                          <TrendingDown className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Revenue at Risk</p>
+                            <p className="font-semibold text-red-600">
+                              {formatRange(rec.economicImpact.revenueAtRisk, rec.economicImpact.currency)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">/month</p>
+                          </div>
+                        </div>
+                      )}
+                      {rec.economicImpact.revenueUpside && (
+                        <div className="flex items-start gap-2">
+                          <TrendingUp className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Revenue Upside</p>
+                            <p className="font-semibold text-green-600">
+                              {formatRange(rec.economicImpact.revenueUpside, rec.economicImpact.currency)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">/month</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Expandable actions */}
                 <Button
                   variant="ghost"
@@ -516,7 +611,7 @@ export default function RecommendationsPage() {
               <div className="bg-muted/50 rounded-lg p-3">
                 <div className="flex items-start gap-2">
                   <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-sm">{selectedRec?.title}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {selectedRec?.themeName} • Score: {selectedRec?.score010.toFixed(1)}/10 •{" "}
@@ -528,6 +623,19 @@ export default function RecommendationsPage() {
                         {selectedRec?.mentions} reviews with issues →
                       </Link>
                     </p>
+                    {/* Economic impact in dialog */}
+                    {selectedRec?.economicImpact?.revenueUpside && (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+                        <TrendingUp className="h-3 w-3 text-green-500" />
+                        <span className="text-xs">
+                          <span className="text-muted-foreground">Potential upside: </span>
+                          <span className="font-medium text-green-600">
+                            {formatRange(selectedRec.economicImpact.revenueUpside, selectedRec.economicImpact.currency)}
+                          </span>
+                          <span className="text-muted-foreground">/mo</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

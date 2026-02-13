@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Settings, Users, Activity, Upload, Scale, Search, ClipboardList } from 'lucide-react';
+import { Shield, Settings, Users, Activity, Upload, Scale, Search, ClipboardList, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function AdminPage() {
@@ -67,6 +67,27 @@ export default async function AdminPage() {
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 Edit JSON rules for confidence scoring and data sufficiency with full versioning.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Economic Parameters */}
+        <Link href="/admin/economics" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Economic Weights
+              </CardTitle>
+              <CardDescription>
+                Revenue &amp; footfall impact settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Configure theme economic weights, elasticity ranges, and ROI calculation parameters.
               </p>
               <Badge variant="default" className="mt-4">Active</Badge>
             </CardContent>

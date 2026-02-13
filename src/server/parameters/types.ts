@@ -108,6 +108,96 @@ export interface FixTrackingParameters {
   };
 }
 
+// ============================================================
+// ECONOMIC IMPACT PARAMETERS
+// ============================================================
+
+/**
+ * Theme economic weight mapping
+ * Maps theme category to economic impact weights
+ */
+export interface ThemeEconomicWeightMap {
+  [themeCategory: string]: {
+    /** Revenue impact multiplier (0-2, default 1.0) */
+    revenue_weight: number;
+    /** Footfall impact multiplier (0-2, default 1.0) */
+    footfall_weight: number;
+    /** Conversion impact multiplier (0-2, default 1.0) */
+    conversion_weight: number;
+  };
+}
+
+/**
+ * Range with min/max values
+ */
+export interface ElasticityRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * Economic impact parameters (admin-only)
+ * Controls how sentiment/rating changes translate to business impact
+ */
+export interface EconomicParameters {
+  /** 
+   * Theme-to-economic-impact weight map
+   * Different themes have different economic impacts
+   * e.g., "food_quality" may have higher revenue impact than "ambiance"
+   */
+  theme_economic_weights: ThemeEconomicWeightMap;
+  
+  /**
+   * Rating to revenue elasticity range
+   * How much revenue changes per point of rating change
+   * Research suggests 5-9% per star, so min/max allows for uncertainty
+   * e.g., { min: 0.05, max: 0.09 } = 5-9% revenue change per rating point
+   */
+  rating_to_revenue_elasticity: ElasticityRange;
+  
+  /**
+   * Rating to click/conversion elasticity range
+   * How much online engagement (clicks, calls, directions) changes per rating point
+   * e.g., { min: 0.03, max: 0.07 } = 3-7% click change per rating point
+   */
+  rating_to_click_elasticity: ElasticityRange;
+  
+  /**
+   * Click to visit conversion rate
+   * What percentage of online actions (clicks, directions, calls) convert to actual visits
+   * e.g., 0.15 = 15% of direction requests result in visits
+   */
+  click_to_visit_conversion_rate: number;
+  
+  /**
+   * Minimum data points required before making ROI claims
+   * Ensures we don't make projections with insufficient data
+   */
+  min_data_for_roi_claim: {
+    /** Minimum reviews needed */
+    min_reviews: number;
+    /** Minimum days of data */
+    min_days: number;
+    /** Minimum themes with data */
+    min_themes: number;
+  };
+  
+  /**
+   * Whether economic impact calculations are enabled
+   * Can be disabled per tenant or globally
+   */
+  enabled: boolean;
+  
+  /**
+   * Confidence display thresholds
+   * Controls when to show high/medium/low confidence labels
+   */
+  confidence_display_thresholds: {
+    high: number;   // e.g., 0.8 = show "high confidence" if data quality >= 0.8
+    medium: number; // e.g., 0.5 = show "medium confidence" if data quality >= 0.5
+  };
+}
+
 /**
  * Complete parameter set structure
  */
@@ -118,6 +208,7 @@ export interface ParameterSet {
   engagement: EngagementParameters;
   confidence: ConfidenceParameters;
   fix_tracking: FixTrackingParameters;
+  economic: EconomicParameters;
 }
 
 // ============================================================

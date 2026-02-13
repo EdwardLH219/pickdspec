@@ -83,6 +83,18 @@ model Tenant {
   tasks           Task[]
   branchAccess    BranchAccess[]
 
+  // Economic impact relations
+  baselineMetrics               RestaurantBaselineMetrics?
+  channelMetrics                ChannelMetrics[]
+  economicImpactSnapshots       EconomicImpactSnapshot[]
+  recommendationEconomicImpacts RecommendationEconomicImpact[]
+
+  // Activation drafts
+  activationDrafts ActivationDraft[]
+
+  // Customer summaries
+  customerSummaries CustomerSummary[]
+
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, isActive])
@@ -133,6 +145,12 @@ model User {
   assignedTasks          Task[]                @relation("AssignedTo")
   createdTasks           Task[]                @relation("CreatedBy")
   auditLogs              AuditLog[]
+
+  // Economic impact relations
+  createdThemeEconomicWeights   ThemeEconomicWeight[]       @relation("ThemeEconomicWeightCreatedBy")
+  activatedThemeEconomicWeights ThemeEconomicWeight[]       @relation("ThemeEconomicWeightActivatedBy")
+  createdBaselineMetrics        RestaurantBaselineMetrics[] @relation("BaselineMetricsCreatedBy")
+  updatedBaselineMetrics        RestaurantBaselineMetrics[] @relation("BaselineMetricsUpdatedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -489,6 +507,12 @@ model Theme {
   recommendations Recommendation[]
   tasks           Task[]
 
+  // Economic impact
+  economicWeights ThemeEconomicWeight[]
+
+  // Activation drafts
+  activationDrafts ActivationDraft[]
+
   @@unique([organizationId, name])
   @@index([organizationId])
   @@index([isSystem])
@@ -515,7 +539,7 @@ model ReviewTheme {
   sentiment       Sentiment
   confidenceScore Float
   excerpt         String?
-  keywords        String[] @default([]) // Matched keywords
+  keywords        String[]  @default([]) // Matched keywords
 
   createdAt DateTime @default(now())
 
@@ -565,9 +589,221 @@ enum ParameterStatus {
   ARCHIVED
 }
 
+// ============================================================
+// ECONOMIC IMPACT ENGINE
+// ============================================================
+
+// Theme Economic Weights: Admin-managed, versioned weights for economic impact
+model ThemeEconomicWeight {
+  id      String @id @default(uuid())
+  themeId String
+  theme   Theme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  // Economic impact weights
+  revenueImpactWeight    Float @default(1.0) // How much this theme affects revenue (0-2)
+  footfallImpactWeight   Float @default(1.0) // How much this theme affects footfall (0-2)
+  conversionImpactWeight Float @default(1.0) // How much this theme affects online conversions (0-2)
+
+  // Optional category-level multiplier
+  categoryMultiplier Float @default(1.0)
+
+  // Versioning
+  version  Int     @default(1)
+  isActive Boolean @default(true)
+
+  createdById   String
+  createdBy     User    @relation("ThemeEconomicWeightCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  activatedById String?
+  activatedBy   User?   @relation("ThemeEconomicWeightActivatedBy", fields: [activatedById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  activatedAt DateTime?
+
+  @@unique([themeId, version])
+  @@index([themeId, isActive])
+  @@index([isActive])
+}
+
+// Restaurant Baseline Metrics: Tenant-level business metrics
+model RestaurantBaselineMetrics {
+  id       String @id @default(uuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Capacity & Volume
+  coversPerMonth  Int? // Average covers (customers served) per month
+  seatCapacity    Int? // Total seating capacity
+  averageTurnover Float? // Average table turns per service
+
+  // Financial
+  averageSpendPerCover Float? // Average spend per customer (in local currency)
+  averageOrderValue    Float? // Average order value
+  currency             String @default("ZAR") // ISO currency code
+
+  // Operating hours
+  daysOpenPerWeek Int? @default(7)
+  servicesPerDay  Int? @default(2) // Lunch + Dinner typically
+
+  // Data source & quality
+  dataSource      String? // "manual", "pos_integration", "estimated"
+  confidenceLevel Float?    @default(0.8) // How reliable is this data (0-1)
+  lastVerifiedAt  DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("BaselineMetricsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("BaselineMetricsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// Channel Metrics: Google Business Profile and other channel insights
+model ChannelMetrics {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Period this data covers
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // Google Business Profile metrics
+  searchViews        Int? // Times business appeared in search
+  mapViews           Int? // Times business appeared on maps
+  websiteClicks      Int? // Clicks to website
+  directionsRequests Int? // Requests for directions
+  phoneCalls         Int? // Phone calls initiated
+  messagesSent       Int? // Messages sent via GBP
+  bookingsInitiated  Int? // Bookings started (if enabled)
+
+  // Photo engagement
+  photoViews Int?
+  photoCount Int?
+
+  // Reviews summary (from GBP)
+  totalReviews       Int?
+  averageRating      Float?
+  newReviewsInPeriod Int?
+
+  // Data source
+  source     String   @default("google_business_profile")
+  importedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, periodStart, periodEnd, source])
+  @@index([tenantId])
+  @@index([periodStart, periodEnd])
+}
+
+// Economic Impact Snapshot: Pinned economic calculations per score run
+model EconomicImpactSnapshot {
+  id         String   @id @default(uuid())
+  scoreRunId String   @unique
+  scoreRun   ScoreRun @relation(fields: [scoreRunId], references: [id], onDelete: Cascade)
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Snapshot of parameters used (for reproducibility)
+  economicParameters Json // Copy of economic params at time of run
+  baselineMetrics    Json? // Copy of RestaurantBaselineMetrics at time of run
+
+  // Calculated impacts
+  estimatedRevenueImpact    Float? // Estimated monthly revenue impact (currency)
+  estimatedFootfallImpact   Int? // Estimated monthly footfall change
+  estimatedConversionImpact Float? // Estimated conversion rate change (%)
+
+  // Confidence in estimates
+  dataQualityScore Float? // 0-1 score of data quality used
+  confidenceLevel  String? // "high", "medium", "low", "insufficient_data"
+
+  // Theme-level breakdown
+  themeImpacts Json? // Array of per-theme economic impacts
+
+  createdAt DateTime @default(now())
+
+  // Recommendation impacts for this run
+  recommendationImpacts RecommendationEconomicImpact[]
+
+  @@index([tenantId])
+  @@index([scoreRunId])
+}
+
+// Recommendation Economic Impact: Computed revenue impact per recommendation
+model RecommendationEconomicImpact {
+  id               String                 @id @default(uuid())
+  snapshotId       String
+  snapshot         EconomicImpactSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  recommendationId String
+  recommendation   Recommendation         @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  tenantId         String
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Revenue at Risk: potential monthly revenue loss if issue persists
+  revenueAtRiskMin Float? // Conservative estimate (using min elasticity)
+  revenueAtRiskMax Float? // Optimistic estimate (using max elasticity)
+  revenueAtRiskMid Float? // Midpoint estimate
+
+  // Revenue Upside: potential monthly revenue gain if issue is fixed
+  revenueUpsideMin Float? // Conservative estimate
+  revenueUpsideMax Float? // Optimistic estimate
+  revenueUpsideMid Float? // Midpoint estimate
+
+  // Footfall impact estimates
+  footfallAtRiskMin Int?
+  footfallAtRiskMax Int?
+  footfallUpsideMin Int?
+  footfallUpsideMax Int?
+
+  // Impact driver classification
+  impactDriver      ImpactDriver @default(RETENTION)
+  impactDriverScore Float? // 0-1 confidence in driver classification
+
+  // Confidence and data quality
+  confidenceLevel  EconomicConfidenceLevel @default(INSUFFICIENT_DATA)
+  dataQualityScore Float? // 0-1 score
+
+  // Explain payload: why these numbers, what data was used
+  explainPayload Json // Detailed breakdown for transparency
+
+  // Inputs used (for audit trail)
+  inputSeverity       String // RecommendationSeverity at time of calc
+  inputMentionCount   Int // Theme mention count
+  inputSentimentScore Float? // Theme sentiment score
+  inputThemeScore010  Float? // Theme score (0-10)
+
+  currency String @default("ZAR")
+
+  createdAt DateTime @default(now())
+
+  @@unique([snapshotId, recommendationId])
+  @@index([tenantId])
+  @@index([snapshotId])
+  @@index([recommendationId])
+  @@index([confidenceLevel])
+}
+
+enum ImpactDriver {
+  ACQUISITION // Affects new customer acquisition (online visibility, first impressions)
+  CONVERSION // Affects online-to-visit conversion (clicks → visits)
+  RETENTION // Affects repeat visits and word-of-mouth
+}
+
+enum EconomicConfidenceLevel {
+  HIGH // Strong data support (meets all minimums)
+  MEDIUM // Moderate data support
+  LOW // Limited data, estimates are rough
+  INSUFFICIENT_DATA // Not enough data to make claims
+}
+
 // RuleSet: Configuration for recommendation generation
 model RuleSet {
-  id             String       @id @default(uuid())
+  id             String        @id @default(uuid())
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -663,6 +899,9 @@ model ScoreRun {
   themeScores  ThemeScore[]
   fixScores    FixScore[]
 
+  // Economic impact snapshot (pinned calculations)
+  economicImpactSnapshot EconomicImpactSnapshot?
+
   @@index([tenantId, createdAt])
   @@index([tenantId, periodStart, periodEnd])
   @@index([status])
@@ -747,15 +986,15 @@ enum TrendDirection {
 }
 
 model FixScore {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   tenantId   String
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   themeId    String
-  theme      Theme     @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  theme      Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
   taskId     String?
-  task       Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
   scoreRunId String
-  scoreRun   ScoreRun  @relation(fields: [scoreRunId], references: [id], onDelete: Cascade)
+  scoreRun   ScoreRun @relation(fields: [scoreRunId], references: [id], onDelete: Cascade)
 
   baselineScore Float // S_before
   currentScore  Float // S_after
@@ -819,6 +1058,9 @@ model Recommendation {
 
   tasks Task[]
 
+  // Economic impact calculations
+  economicImpacts RecommendationEconomicImpact[]
+
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([severity])
@@ -876,7 +1118,8 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  fixScores FixScore[]
+  fixScores        FixScore[]
+  activationDrafts ActivationDraft[]
 
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
@@ -897,6 +1140,102 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+// ============================================================
+// ACTIVATION DRAFTS
+// ============================================================
+
+// Generated marketing content for completed high-impact tasks
+model ActivationDraft {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Link to the completed task that triggered this
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Theme context for the draft
+  themeId String
+  theme   Theme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  // Draft type and content
+  draftType ActivationDraftType
+  title     String
+  content   String              @db.Text
+  metadata  Json? // Additional context (e.g., offer details, hashtags)
+
+  // Performance context from the task
+  deltaS        Float // Sentiment improvement that triggered this
+  fixScore      Float // The FixScore value
+  themeCategory String // Theme category for templates
+
+  // Status tracking
+  status       ActivationDraftStatus @default(DRAFT)
+  publishedAt  DateTime?
+  publishedBy  String?
+  publishNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, draftType])
+  @@index([taskId])
+  @@index([themeId])
+}
+
+enum ActivationDraftType {
+  GBP_POST // Google Business Profile post
+  REVIEW_PROMPT // Message template to request reviews
+  OFFER_SUGGESTION // Promotional offer suggestion
+}
+
+enum ActivationDraftStatus {
+  DRAFT // Generated, not yet used
+  MARKED_PUBLISHED // Manually marked as published
+  ARCHIVED // Archived/dismissed
+}
+
+// ============================================================
+// CUSTOMER SUMMARY (AI-Generated Review Summaries)
+// ============================================================
+
+model CustomerSummary {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Time period for this summary
+  periodType CustomerSummaryPeriod
+
+  // The actual summary content
+  summary String @db.Text
+
+  // Metadata about the reviews that were summarized
+  reviewCount   Int // Number of reviews included in summary
+  dateRangeFrom DateTime // Start of review date range
+  dateRangeTo   DateTime // End of review date range
+  themesIncluded Json? // Array of theme names mentioned in summary
+
+  // Generation metadata
+  model        String // AI model used (e.g., "gpt-4o-mini")
+  promptTokens Int?
+  totalTokens  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, periodType])
+  @@index([tenantId])
+  @@index([tenantId, periodType])
+}
+
+enum CustomerSummaryPeriod {
+  SIX_MONTHS
+  THREE_MONTHS
+  TWO_WEEKS
 }
 
 // ============================================================

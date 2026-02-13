@@ -124,6 +124,38 @@ export async function GET(request: NextRequest) {
     completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
   };
 
+  // Get economic impacts for recommendations linked to tasks
+  const recIds = tasks
+    .map(t => t.recommendationId)
+    .filter((id): id is string => id !== null);
+  
+  const economicImpacts = recIds.length > 0
+    ? await db.recommendationEconomicImpact.findMany({
+        where: { recommendationId: { in: recIds } },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['recommendationId'],
+        select: {
+          recommendationId: true,
+          revenueAtRiskMin: true,
+          revenueAtRiskMax: true,
+          revenueAtRiskMid: true,
+          revenueUpsideMin: true,
+          revenueUpsideMax: true,
+          revenueUpsideMid: true,
+          footfallAtRiskMin: true,
+          footfallAtRiskMax: true,
+          footfallUpsideMin: true,
+          footfallUpsideMax: true,
+          impactDriver: true,
+          confidenceLevel: true,
+          dataQualityScore: true,
+          currency: true,
+        },
+      })
+    : [];
+
+  const impactMap = new Map(economicImpacts.map(ei => [ei.recommendationId, ei]));
+
   // Transform tasks for frontend
   const transformed = tasks.map(task => {
     const isOverdue = !!(
@@ -135,6 +167,9 @@ export async function GET(request: NextRequest) {
 
     const fixScore = task.fixScores[0];
     let fixScoreData = null;
+    
+    // Get economic impact from linked recommendation
+    const economicImpact = task.recommendationId ? impactMap.get(task.recommendationId) : null;
 
     if (task.status === TaskStatus.COMPLETED) {
       if (!fixScore) {
@@ -198,6 +233,21 @@ export async function GET(request: NextRequest) {
       } : null,
       fixScore: fixScoreData,
       isOverdue,
+      // Economic impact data from linked recommendation
+      economicImpact: economicImpact ? {
+        revenueUpside: economicImpact.revenueUpsideMin !== null ? {
+          min: economicImpact.revenueUpsideMin,
+          max: economicImpact.revenueUpsideMax,
+          mid: economicImpact.revenueUpsideMid,
+        } : null,
+        footfallUpside: economicImpact.footfallUpsideMin !== null ? {
+          min: economicImpact.footfallUpsideMin,
+          max: economicImpact.footfallUpsideMax,
+        } : null,
+        impactDriver: economicImpact.impactDriver,
+        confidenceLevel: economicImpact.confidenceLevel,
+        currency: economicImpact.currency,
+      } : null,
     };
   });
 

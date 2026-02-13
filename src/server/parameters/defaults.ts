@@ -83,6 +83,89 @@ export const DEFAULT_PARAMETERS: ParameterSet = {
       low: 2,
     },
   },
+  
+  economic: {
+    // Theme economic weights by category
+    // Different themes have different economic impacts
+    theme_economic_weights: {
+      // Product themes (food/menu) - high revenue impact
+      PRODUCT: {
+        revenue_weight: 1.5,
+        footfall_weight: 1.2,
+        conversion_weight: 1.3,
+      },
+      // Service themes - high footfall impact (word of mouth)
+      SERVICE: {
+        revenue_weight: 1.2,
+        footfall_weight: 1.5,
+        conversion_weight: 1.4,
+      },
+      // Value themes - moderate impact across all
+      VALUE: {
+        revenue_weight: 1.3,
+        footfall_weight: 1.3,
+        conversion_weight: 1.2,
+      },
+      // Ambiance themes - conversion impact (photos, first impressions)
+      AMBIANCE: {
+        revenue_weight: 0.9,
+        footfall_weight: 1.0,
+        conversion_weight: 1.4,
+      },
+      // Cleanliness - high footfall impact (deal breaker)
+      CLEANLINESS: {
+        revenue_weight: 1.1,
+        footfall_weight: 1.6,
+        conversion_weight: 1.3,
+      },
+      // Location - moderate impact
+      LOCATION: {
+        revenue_weight: 0.8,
+        footfall_weight: 0.9,
+        conversion_weight: 1.0,
+      },
+      // Other - baseline
+      OTHER: {
+        revenue_weight: 1.0,
+        footfall_weight: 1.0,
+        conversion_weight: 1.0,
+      },
+    },
+    
+    // Rating to revenue elasticity (based on Yelp/Harvard research)
+    // ~5-9% revenue change per star rating
+    rating_to_revenue_elasticity: {
+      min: 0.05,  // Conservative: 5% revenue change per rating point
+      max: 0.09,  // Optimistic: 9% revenue change per rating point
+    },
+    
+    // Rating to click elasticity
+    // How online engagement changes with rating
+    rating_to_click_elasticity: {
+      min: 0.03,  // Conservative: 3% click change per rating point
+      max: 0.07,  // Optimistic: 7% click change per rating point
+    },
+    
+    // Click to visit conversion rate
+    // ~15% of direction requests result in visits
+    click_to_visit_conversion_rate: 0.15,
+    
+    // Minimum data requirements for ROI claims
+    min_data_for_roi_claim: {
+      min_reviews: 20,     // Need at least 20 reviews
+      min_days: 30,        // Need at least 30 days of data
+      min_themes: 3,       // Need at least 3 themes with data
+    },
+    
+    // Economic calculations enabled by default
+    enabled: true,
+    
+    // Confidence display thresholds
+    confidence_display_thresholds: {
+      high: 0.8,    // Show "high confidence" if data quality >= 80%
+      medium: 0.5,  // Show "medium confidence" if data quality >= 50%
+    },
+  },
 };
 
 // ============================================================
@@ -139,6 +222,20 @@ export const PARAMETER_BOUNDS: Record<string, ParameterBounds> = {
   'fix_tracking.confidence_thresholds.high': { required: true, min: 1, max: 100 },
   'fix_tracking.confidence_thresholds.medium': { required: true, min: 1, max: 100 },
   'fix_tracking.confidence_thresholds.low': { required: true, min: 1, max: 100 },
+  
+  // Economic Impact
+  'economic.enabled': { required: true },
+  'economic.theme_economic_weights': { required: true },
+  'economic.rating_to_revenue_elasticity.min': { required: true, min: 0, max: 0.5 },
+  'economic.rating_to_revenue_elasticity.max': { required: true, min: 0, max: 0.5 },
+  'economic.rating_to_click_elasticity.min': { required: true, min: 0, max: 0.5 },
+  'economic.rating_to_click_elasticity.max': { required: true, min: 0, max: 0.5 },
+  'economic.click_to_visit_conversion_rate': { required: true, min: 0, max: 1 },
+  'economic.min_data_for_roi_claim.min_reviews': { required: true, min: 1, max: 1000 },
+  'economic.min_data_for_roi_claim.min_days': { required: true, min: 1, max: 365 },
+  'economic.min_data_for_roi_claim.min_themes': { required: true, min: 1, max: 20 },
+  'economic.confidence_display_thresholds.high': { required: true, min: 0, max: 1 },
+  'economic.confidence_display_thresholds.medium': { required: true, min: 0, max: 1 },
 };
 
 /**
@@ -151,6 +248,7 @@ export const REQUIRED_SECTIONS: (keyof ParameterSet)[] = [
   'engagement',
   'confidence',
   'fix_tracking',
+  'economic',
 ];
 
 /**
@@ -174,5 +272,14 @@ export const REQUIRED_KEYS: Record<keyof ParameterSet, string[]> = {
     'post_window_days',
     'min_reviews_for_inference',
     'confidence_thresholds',
+  ],
+  economic: [
+    'enabled',
+    'theme_economic_weights',
+    'rating_to_revenue_elasticity',
+    'rating_to_click_elasticity',
+    'click_to_visit_conversion_rate',
+    'min_data_for_roi_claim',
+    'confidence_display_thresholds',
   ],
 };

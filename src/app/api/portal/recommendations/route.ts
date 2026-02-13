@@ -137,9 +137,42 @@ export async function GET(request: NextRequest) {
 
   const themeScoreMap = new Map(themeScores.map(ts => [ts.themeId, ts]));
 
+  // Get economic impacts for recommendations
+  const recIds = recommendations.map(r => r.id);
+  const economicImpacts = recIds.length > 0
+    ? await db.recommendationEconomicImpact.findMany({
+        where: { recommendationId: { in: recIds } },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['recommendationId'],
+        select: {
+          recommendationId: true,
+          revenueAtRiskMin: true,
+          revenueAtRiskMax: true,
+          revenueAtRiskMid: true,
+          revenueUpsideMin: true,
+          revenueUpsideMax: true,
+          revenueUpsideMid: true,
+          footfallAtRiskMin: true,
+          footfallAtRiskMax: true,
+          footfallUpsideMin: true,
+          footfallUpsideMax: true,
+          impactDriver: true,
+          confidenceLevel: true,
+          dataQualityScore: true,
+          currency: true,
+        },
+      })
+    : [];
+
+  const impactMap = new Map(economicImpacts.map(ei => [ei.recommendationId, ei]));
+  
+  // Debug logging
+  console.log(`[Recommendations API] Found ${economicImpacts.length} economic impacts for ${recIds.length} recommendations`);
+
   // Transform for frontend
   const transformed = recommendations.map(rec => {
     const themeScore = rec.themeId ? themeScoreMap.get(rec.themeId) : null;
+    const economicImpact = impactMap.get(rec.id);
     const taskCount = rec.tasks.length;
     const pendingTaskCount = rec.tasks.filter(t => 
       t.status === TaskStatus.PENDING || t.status === TaskStatus.IN_PROGRESS
@@ -163,6 +196,31 @@ export async function GET(request: NextRequest) {
       taskCount,
       pendingTaskCount,
       createdAt: rec.createdAt.toISOString(),
+      // Economic impact data
+      economicImpact: economicImpact ? {
+        revenueAtRisk: economicImpact.revenueAtRiskMin !== null ? {
+          min: economicImpact.revenueAtRiskMin,
+          max: economicImpact.revenueAtRiskMax,
+          mid: economicImpact.revenueAtRiskMid,
+        } : null,
+        revenueUpside: economicImpact.revenueUpsideMin !== null ? {
+          min: economicImpact.revenueUpsideMin,
+          max: economicImpact.revenueUpsideMax,
+          mid: economicImpact.revenueUpsideMid,
+        } : null,
+        footfallAtRisk: economicImpact.footfallAtRiskMin !== null ? {
+          min: economicImpact.footfallAtRiskMin,
+          max: economicImpact.footfallAtRiskMax,
+        } : null,
+        footfallUpside: economicImpact.footfallUpsideMin !== null ? {
+          min: economicImpact.footfallUpsideMin,
+          max: economicImpact.footfallUpsideMax,
+        } : null,
+        impactDriver: economicImpact.impactDriver,
+        confidenceLevel: economicImpact.confidenceLevel,
+        dataQualityScore: economicImpact.dataQualityScore,
+        currency: economicImpact.currency,
+      } : null,
     };
   });
 

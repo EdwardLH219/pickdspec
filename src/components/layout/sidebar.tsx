@@ -16,6 +16,7 @@ import {
   LogOut,
   Shield,
   Database,
+  Sparkles,
 } from "lucide-react";
 
 const navItems = [
@@ -33,6 +34,11 @@ const navItems = [
     title: "Tasks",
     href: "/tasks",
     icon: CheckSquare,
+  },
+  {
+    title: "Activations",
+    href: "/activations",
+    icon: Sparkles,
   },
   {
     title: "Reports",

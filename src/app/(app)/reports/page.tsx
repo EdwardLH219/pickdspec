@@ -44,6 +44,10 @@ import {
   AlertTriangle,
   ExternalLink,
   Star,
+  Users,
+  RefreshCw,
+  Clock,
+  Calendar,
 } from "lucide-react";
 
 // Format source type for display
@@ -102,6 +106,23 @@ interface ThemeBreakdownItem {
   sentimentPercentages: { positive: number; neutral: number; negative: number };
 }
 
+interface CustomerSummaryData {
+  summary: string;
+  reviewCount: number;
+  dateRangeFrom: string;
+  dateRangeTo: string;
+  themesIncluded: string[];
+  updatedAt: string;
+}
+
+type SummaryPeriod = 'SIX_MONTHS' | 'THREE_MONTHS' | 'TWO_WEEKS';
+
+const PERIOD_LABELS: Record<SummaryPeriod, { title: string; description: string }> = {
+  SIX_MONTHS: { title: '6 Months', description: 'Customer feedback over the last 6 months' },
+  THREE_MONTHS: { title: '3 Months', description: 'Customer feedback over the last 3 months' },
+  TWO_WEEKS: { title: '2 Weeks', description: 'Recent customer feedback from the last 2 weeks' },
+};
+
 export default function ReportsPage() {
   const { selectedTenantId, selectedTenant, isLoading: branchLoading, getDateRange } = useBranch();
   const searchParams = useSearchParams();
@@ -138,6 +159,15 @@ export default function ReportsPage() {
   const [themes, setThemes] = useState<ThemeBreakdownItem[]>([]);
   const [themesLoading, setThemesLoading] = useState(false);
   const [themesError, setThemesError] = useState<string | null>(null);
+  
+  // Customer Summary state
+  const [summaries, setSummaries] = useState<Record<SummaryPeriod, CustomerSummaryData | null>>({
+    SIX_MONTHS: null,
+    THREE_MONTHS: null,
+    TWO_WEEKS: null,
+  });
+  const [summariesLoading, setSummariesLoading] = useState(false);
+  const [summaryGenerating, setSummaryGenerating] = useState<SummaryPeriod | 'all' | null>(null);
 
   // Fetch reviews
   const fetchReviews = async () => {
@@ -192,11 +222,74 @@ export default function ReportsPage() {
     }
   };
 
+  // Fetch customer summaries
+  const fetchSummaries = async () => {
+    if (!selectedTenantId) return;
+
+    setSummariesLoading(true);
+
+    try {
+      const res = await fetch(`/api/portal/reports/summary?tenantId=${selectedTenantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSummaries({
+          SIX_MONTHS: data.summaries?.SIX_MONTHS || null,
+          THREE_MONTHS: data.summaries?.THREE_MONTHS || null,
+          TWO_WEEKS: data.summaries?.TWO_WEEKS || null,
+        });
+      }
+    } catch {
+      // Silently fail - summaries are optional
+    } finally {
+      setSummariesLoading(false);
+    }
+  };
+
+  // Generate summaries
+  const generateSummaries = async (period?: SummaryPeriod) => {
+    if (!selectedTenantId) return;
+
+    setSummaryGenerating(period || 'all');
+
+    try {
+      const res = await fetch('/api/portal/reports/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          tenantId: selectedTenantId,
+          period: period || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update the summaries state
+        setSummaries(prev => ({
+          ...prev,
+          ...(data.summaries || {}),
+        }));
+        toast.success('Summaries generated', {
+          description: period 
+            ? `Updated ${PERIOD_LABELS[period].title} summary`
+            : 'All summaries have been refreshed',
+        });
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to generate summaries');
+      }
+    } catch {
+      toast.error('Failed to generate summaries');
+    } finally {
+      setSummaryGenerating(null);
+    }
+  };
+
   // Fetch data when tenant or theme filter changes
   useEffect(() => {
     if (selectedTenantId) {
       fetchReviews();
       fetchThemes();
+      fetchSummaries();
     }
   }, [selectedTenantId, themeFilter]);
 
@@ -332,7 +425,7 @@ export default function ReportsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="explorer" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="explorer" className="flex items-center gap-2">
             <Search className="h-4 w-4" />
             Review Explorer
@@ -340,6 +433,10 @@ export default function ReportsPage() {
           <TabsTrigger value="themes" className="flex items-center gap-2">
             <PieChart className="h-4 w-4" />
             Theme Breakdown
+          </TabsTrigger>
+          <TabsTrigger value="summary" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Customer Summary
           </TabsTrigger>
         </TabsList>
 
@@ -636,6 +733,150 @@ export default function ReportsPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Customer Summary Tab */}
+        <TabsContent value="summary" className="space-y-4">
+          {/* Header with Refresh All button */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium">AI-Generated Customer Summaries</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Summaries are generated from actual customer reviews using AI analysis
+                  </p>
+                </div>
+                <Button
+                  onClick={() => generateSummaries()}
+                  disabled={summaryGenerating !== null}
+                >
+                  {summaryGenerating === 'all' ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh All
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {summariesLoading ? (
+            <div className="space-y-4">
+              {(['TWO_WEEKS', 'THREE_MONTHS', 'SIX_MONTHS'] as SummaryPeriod[]).map(period => (
+                <Card key={period}>
+                  <CardContent className="p-6">
+                    <Skeleton className="h-24 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(['TWO_WEEKS', 'THREE_MONTHS', 'SIX_MONTHS'] as SummaryPeriod[]).map(period => {
+                const summary = summaries[period];
+                const config = PERIOD_LABELS[period];
+                
+                return (
+                  <Card key={period}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            {config.title}
+                          </CardTitle>
+                          <CardDescription>{config.description}</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => generateSummaries(period)}
+                          disabled={summaryGenerating !== null}
+                        >
+                          {summaryGenerating === period ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {summary ? (
+                        <div className="space-y-4">
+                          {/* Summary Text */}
+                          <div className="bg-muted/50 p-4 rounded-lg">
+                            <p className="text-sm leading-relaxed">{summary.summary}</p>
+                          </div>
+                          
+                          {/* Metadata */}
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <FileText className="h-3 w-3" />
+                              <span>{summary.reviewCount} reviews analyzed</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>
+                                {new Date(summary.dateRangeFrom).toLocaleDateString()} - {new Date(summary.dateRangeTo).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span>Updated {new Date(summary.updatedAt).toLocaleString()}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Themes */}
+                          {summary.themesIncluded && summary.themesIncluded.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {summary.themesIncluded.map(theme => (
+                                <Badge key={theme} variant="outline" className="text-xs">
+                                  {theme}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Users className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground mb-3">
+                            No summary generated yet for this period
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generateSummaries(period)}
+                            disabled={summaryGenerating !== null}
+                          >
+                            {summaryGenerating === period ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Generate Summary
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>

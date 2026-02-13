@@ -8,6 +8,7 @@
 import { db } from '@/server/db';
 import { RecommendationSeverity, RecommendationStatus, RecommendationCategory, ThemeCategory } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { calculateAndPersistEconomicImpacts } from '@/server/economic';
 
 // ============================================================
 // TYPES
@@ -309,6 +310,40 @@ export async function generateRecommendationsFromScoreRun(
     generated: generated.length,
     skipped,
   }, 'Recommendation generation complete');
+
+  // Calculate economic impacts for ALL open recommendations (not just newly generated)
+  // This ensures existing recommendations get impacts when baseline metrics are updated
+  try {
+    // Get all open recommendation IDs for this tenant
+    const allOpenRecs = await db.recommendation.findMany({
+      where: {
+        tenantId,
+        status: { in: [RecommendationStatus.OPEN, RecommendationStatus.IN_PROGRESS] },
+      },
+      select: { id: true },
+    });
+
+    if (allOpenRecs.length > 0) {
+      // Delete any existing impacts for this score run to avoid duplicates
+      await db.economicImpactSnapshot.deleteMany({
+        where: { scoreRunId },
+      });
+
+      const economicResult = await calculateAndPersistEconomicImpacts(
+        tenantId,
+        allOpenRecs.map(r => r.id),
+        scoreRunId
+      );
+      logger.info({
+        tenantId,
+        economicCalculated: economicResult.calculated,
+        economicSkipped: economicResult.skipped,
+      }, 'Economic impact calculations complete');
+    }
+  } catch (error) {
+    logger.error({ error, tenantId }, 'Failed to calculate economic impacts');
+    // Don't fail the recommendation generation if economic calculation fails
+  }
 
   return { generated: generated.length, skipped, recommendations: generated };
 }

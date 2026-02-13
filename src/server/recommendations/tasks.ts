@@ -8,6 +8,7 @@
 import { db } from '@/server/db';
 import { TaskStatus, TaskPriority, RecommendationStatus, RecommendationSeverity } from '@prisma/client';
 import { computeAndPersistFixScore } from '@/server/scoring/fixscore';
+import { generateDraftsForTask, qualifiesForActivation } from '@/server/activations';
 import { logger } from '@/lib/logger';
 
 // ============================================================
@@ -208,7 +209,23 @@ export async function updateTask(taskId: string, input: UpdateTaskInput, userId:
   // Trigger FixScore calculation if task was just completed
   if (isBeingCompleted && task.themeId) {
     try {
-      await triggerFixScoreCalculation(task.id, task.tenantId, task.themeId);
+      const fixScoreResult = await triggerFixScoreCalculation(task.id, task.tenantId, task.themeId);
+      
+      // Generate activation drafts if there's positive sentiment improvement
+      if (fixScoreResult && qualifiesForActivation(fixScoreResult.result.deltaS, fixScoreResult.result.fixScore)) {
+        try {
+          const activationResult = await generateDraftsForTask(task.id);
+          if (activationResult.success) {
+            logger.info({
+              taskId,
+              draftCount: activationResult.draftIds.length,
+            }, 'Activation drafts generated for completed task');
+          }
+        } catch (activationError) {
+          logger.error({ error: activationError, taskId }, 'Failed to generate activation drafts');
+          // Don't fail the task update if activation generation fails
+        }
+      }
     } catch (error) {
       logger.error({ error, taskId }, 'Failed to calculate FixScore');
       // Don't fail the task update if FixScore calculation fails
