@@ -365,7 +365,7 @@ export default function ActivationsPage() {
 
       {/* Draft Detail Dialog */}
       <Dialog open={!!selectedDraft} onOpenChange={() => setSelectedDraft(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {selectedDraft && (
             <>
               <DialogHeader>
