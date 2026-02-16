@@ -111,7 +111,8 @@ interface CustomerSummaryData {
   reviewCount: number;
   dateRangeFrom: string;
   dateRangeTo: string;
-  themesIncluded: string[];
+  themeScores: Record<string, number>;
+  goodFor: string[];
   updatedAt: string;
 }
 
@@ -168,6 +169,24 @@ export default function ReportsPage() {
   });
   const [summariesLoading, setSummariesLoading] = useState(false);
   const [summaryGenerating, setSummaryGenerating] = useState<SummaryPeriod | 'all' | null>(null);
+
+  // Helper to normalize theme scores from API response
+  const normalizeThemeScores = (data: Record<string, number> | string[] | undefined): Record<string, number> => {
+    if (!data) return {};
+    if (Array.isArray(data)) {
+      // Old format: convert string array to object with 0 scores
+      const result: Record<string, number> = {};
+      data.forEach(name => { result[name] = 0; });
+      return result;
+    }
+    return data;
+  };
+  
+  // Helper to normalize goodFor from API response
+  const normalizeGoodFor = (data: string[] | undefined): string[] => {
+    if (!data || !Array.isArray(data)) return [];
+    return data;
+  };
 
   // Fetch reviews
   const fetchReviews = async () => {
@@ -232,11 +251,24 @@ export default function ReportsPage() {
       const res = await fetch(`/api/portal/reports/summary?tenantId=${selectedTenantId}`);
       if (res.ok) {
         const data = await res.json();
-        setSummaries({
-          SIX_MONTHS: data.summaries?.SIX_MONTHS || null,
-          THREE_MONTHS: data.summaries?.THREE_MONTHS || null,
-          TWO_WEEKS: data.summaries?.TWO_WEEKS || null,
-        });
+        // Normalize theme scores for each period
+        const normalized: Record<SummaryPeriod, CustomerSummaryData | null> = {
+          SIX_MONTHS: null,
+          THREE_MONTHS: null,
+          TWO_WEEKS: null,
+        };
+        
+        for (const period of ['SIX_MONTHS', 'THREE_MONTHS', 'TWO_WEEKS'] as SummaryPeriod[]) {
+          if (data.summaries?.[period]) {
+            normalized[period] = {
+              ...data.summaries[period],
+              themeScores: normalizeThemeScores(data.summaries[period].themeScores),
+              goodFor: normalizeGoodFor(data.summaries[period].goodFor),
+            };
+          }
+        }
+        
+        setSummaries(normalized);
       }
     } catch {
       // Silently fail - summaries are optional
@@ -263,11 +295,22 @@ export default function ReportsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // Update the summaries state
-        setSummaries(prev => ({
-          ...prev,
-          ...(data.summaries || {}),
-        }));
+        // Normalize and update the summaries state
+        setSummaries(prev => {
+          const updated = { ...prev };
+          for (const [key, value] of Object.entries(data.summaries || {})) {
+            const periodKey = key as SummaryPeriod;
+            if (value) {
+              const summaryData = value as CustomerSummaryData;
+              updated[periodKey] = {
+                ...summaryData,
+                themeScores: normalizeThemeScores(summaryData.themeScores),
+                goodFor: normalizeGoodFor(summaryData.goodFor),
+              };
+            }
+          }
+          return updated;
+        });
         toast.success('Summaries generated', {
           description: period 
             ? `Updated ${PERIOD_LABELS[period].title} summary`
@@ -816,6 +859,14 @@ export default function ReportsPage() {
                           {/* Summary Text */}
                           <div className="bg-muted/50 p-4 rounded-lg">
                             <p className="text-sm leading-relaxed">{summary.summary}</p>
+                            
+                            {/* Good For line */}
+                            {summary.goodFor && summary.goodFor.length > 0 && (
+                              <p className="text-sm mt-3 pt-3 border-t border-border/50 text-muted-foreground">
+                                <span className="font-medium text-foreground">Good for:</span>{' '}
+                                {summary.goodFor.join(' • ')}
+                              </p>
+                            )}
                           </div>
                           
                           {/* Metadata */}
@@ -836,14 +887,30 @@ export default function ReportsPage() {
                             </div>
                           </div>
                           
-                          {/* Themes */}
-                          {summary.themesIncluded && summary.themesIncluded.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {summary.themesIncluded.map(theme => (
-                                <Badge key={theme} variant="outline" className="text-xs">
-                                  {theme}
-                                </Badge>
-                              ))}
+                          {/* Theme Scores */}
+                          {summary.themeScores && Object.keys(summary.themeScores).length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {Object.entries(summary.themeScores)
+                                .sort(([, a], [, b]) => b - a) // Sort by score descending
+                                .map(([theme, score]) => {
+                                  // Color based on score
+                                  const scoreColor = score >= 7 
+                                    ? 'bg-green-100 text-green-800 border-green-300'
+                                    : score >= 5 
+                                      ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                      : 'bg-red-100 text-red-800 border-red-300';
+                                  
+                                  return (
+                                    <Badge 
+                                      key={theme} 
+                                      variant="outline" 
+                                      className={`text-xs ${scoreColor}`}
+                                    >
+                                      {theme}
+                                      <span className="ml-1.5 font-semibold">{score.toFixed(1)}</span>
+                                    </Badge>
+                                  );
+                                })}
                             </div>
                           )}
                         </div>

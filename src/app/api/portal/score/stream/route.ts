@@ -190,136 +190,146 @@ export async function POST(request: NextRequest) {
 
         send({ type: 'phase_complete', phase: 1, message: `✅ Theme extraction complete: ${themesExtracted} theme tags created` });
 
-        // Phase 2: Review Scoring
-        send({ type: 'phase', phase: 2, message: '🧮 Phase 2: Calculating review scores...' });
+        // Phase 2: Review Scoring (with parallel processing for speed)
+        send({ type: 'phase', phase: 2, message: '🧮 Phase 2: Calculating review scores (parallel processing)...' });
 
         const asOfDate = new Date();
         const reviewScores: Array<{ reviewId: string; weightedImpact: number; sentiment: number }> = [];
+        
+        // Filter reviews with content
+        const reviewsToProcess = reviews.filter(r => r.content);
+        send({ type: 'info', message: `📊 Processing ${reviewsToProcess.length} reviews with content (${reviews.length - reviewsToProcess.length} skipped)` });
 
-        for (let i = 0; i < reviews.length; i++) {
-          const review = reviews[i];
+        // Process in parallel batches of 10 for speed
+        const BATCH_SIZE = 10;
+        const batches = [];
+        for (let i = 0; i < reviewsToProcess.length; i += BATCH_SIZE) {
+          batches.push(reviewsToProcess.slice(i, i + BATCH_SIZE));
+        }
 
-          try {
-            // Skip reviews without content
-            if (!review.content) {
-              send({ type: 'progress', phase: 2, current: i + 1, total: reviews.length, message: `⏭️ Review ${i + 1}: Skipped (no content)` });
-              continue;
-            }
+        let processedCount = 0;
+        
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          
+          // Process batch in parallel
+          const batchResults = await Promise.all(
+            batch.map(async (review) => {
+              try {
+                // Calculate sentiment (with themes if using AI)
+                const sentimentResult = await analyzeSentimentWithThemes({
+                  content: review.content,
+                  language: review.detectedLanguage ?? undefined,
+                  context: { businessType: 'restaurant', starRating: review.rating ?? undefined },
+                });
 
-            // Calculate sentiment (with themes if using AI)
-            const sentimentResult = await analyzeSentimentWithThemes({
-              content: review.content,
-              language: review.detectedLanguage ?? undefined,
-              context: { businessType: 'restaurant', starRating: review.rating ?? undefined },
-            });
+                let baseSentiment = sentimentResult.score;
+                const aiThemes = sentimentResult.themes || [];
+                
+                // Blend with star rating
+                if (params.sentiment.use_star_rating && review.rating !== null) {
+                  const ratingNormalized = (review.rating - 3) / 2;
+                  const blendWeight = params.sentiment.star_rating_blend_weight ?? 0.3;
+                  baseSentiment = sentimentResult.score * (1 - blendWeight) + ratingNormalized * blendWeight;
+                }
 
-            let baseSentiment = sentimentResult.score;
-            const aiThemes = sentimentResult.themes || [];
-            
-            // Blend with star rating
-            if (params.sentiment.use_star_rating && review.rating !== null) {
-              const ratingNormalized = (review.rating - 3) / 2;
-              const blendWeight = params.sentiment.star_rating_blend_weight ?? 0.3;
-              baseSentiment = sentimentResult.score * (1 - blendWeight) + ratingNormalized * blendWeight;
-            }
+                // Calculate weights (with null safety)
+                const sourceType = review.connector?.sourceType ?? 'WEBSITE';
+                const reviewDate = review.reviewDate ?? new Date();
+                const timeWeight = calculateTimeWeight(reviewDate, asOfDate, params.time.review_half_life_days);
+                const sourceWeight = calculateSourceWeight(sourceType, params);
+                const engagementWeight = calculateEngagementWeight(
+                  review.likesCount ?? 0,
+                  review.repliesCount ?? 0,
+                  review.helpfulCount ?? 0,
+                  sourceType,
+                  params
+                );
 
-            // Calculate weights (with null safety)
-            const sourceType = review.connector?.sourceType ?? 'WEBSITE';
-            const reviewDate = review.reviewDate ?? new Date();
-            const timeWeight = calculateTimeWeight(reviewDate, asOfDate, params.time.review_half_life_days);
-            const sourceWeight = calculateSourceWeight(sourceType, params);
-            const engagementWeight = calculateEngagementWeight(
-              review.likesCount ?? 0,
-              review.repliesCount ?? 0,
-              review.helpfulCount ?? 0,
-              sourceType,
-              params
-            );
+                // Calculate final weighted impact
+                const W_r = calculateWeightedImpact(
+                  baseSentiment,
+                  timeWeight.value,
+                  sourceWeight.value,
+                  engagementWeight.value,
+                  1.0 // confidence weight simplified
+                );
 
-            // Calculate final weighted impact
-            const W_r = calculateWeightedImpact(
-              baseSentiment,
-              timeWeight.value,
-              sourceWeight.value,
-              engagementWeight.value,
-              1.0 // confidence weight simplified
-            );
+                return {
+                  reviewId: review.id,
+                  weightedImpact: W_r,
+                  sentiment: baseSentiment,
+                  aiThemes,
+                  timeWeight: timeWeight.value,
+                  sourceWeight: sourceWeight.value,
+                };
+              } catch (error) {
+                console.error('Error processing review:', error);
+                return null;
+              }
+            })
+          );
 
-            reviewScores.push({ reviewId: review.id, weightedImpact: W_r, sentiment: baseSentiment });
-
-            // Log calculation details every few reviews
-            if (i < 3 || i % 10 === 0) {
-              const themeInfo = aiThemes.length > 0 
-                ? ` [AI: ${aiThemes.map(t => t.name).join(', ')}]` 
-                : '';
-              send({
-                type: 'calculation',
-                phase: 2,
-                current: i + 1,
-                total: reviews.length,
-                review: {
-                  preview: review.content.substring(0, 50) + '...',
-                  rating: review.rating,
-                },
-                weights: {
-                  S_r: baseSentiment.toFixed(3),
-                  W_time: timeWeight.value.toFixed(3),
-                  W_source: sourceWeight.value.toFixed(2),
-                  W_engage: engagementWeight.value.toFixed(2),
-                  W_r: W_r.toFixed(4),
-                },
-                aiThemes: aiThemes.map(t => ({ name: t.name, sentiment: t.sentiment })),
-                message: `⚖️ Review ${i + 1}: S_r=${baseSentiment.toFixed(2)} × W_time=${timeWeight.value.toFixed(2)} × W_src=${sourceWeight.value.toFixed(1)} → W_r=${W_r.toFixed(3)}${themeInfo}`
+          // Collect successful results
+          for (const result of batchResults) {
+            if (result) {
+              reviewScores.push({
+                reviewId: result.reviewId,
+                weightedImpact: result.weightedImpact,
+                sentiment: result.sentiment,
               });
             }
-          } catch (reviewError) {
-            send({ 
-              type: 'progress', 
-              phase: 2, 
-              current: i + 1, 
-              total: reviews.length, 
-              message: `⚠️ Review ${i + 1}: Error - ${reviewError instanceof Error ? reviewError.message : 'Unknown'}` 
-            });
           }
+
+          processedCount += batch.length;
+          
+          // Log batch progress
+          const sampleResult = batchResults.find(r => r !== null);
+          const themeInfo = sampleResult?.aiThemes?.length 
+            ? ` [AI: ${sampleResult.aiThemes.map(t => t.name).join(', ')}]` 
+            : '';
+          
+          send({
+            type: 'calculation',
+            phase: 2,
+            current: processedCount,
+            total: reviewsToProcess.length,
+            message: `⚖️ Batch ${batchIndex + 1}/${batches.length}: Processed ${batch.length} reviews (${processedCount}/${reviewsToProcess.length})${themeInfo}`
+          });
         }
 
         send({ type: 'phase_complete', phase: 2, message: `✅ Review scoring complete: ${reviewScores.length} reviews scored` });
 
-        // Persist ReviewScore records to database
+        // Persist ReviewScore records to database (batch operation for speed)
         send({ type: 'info', message: '💾 Saving review scores to database...' });
+        
+        // Delete existing scores for this run first, then bulk create
+        await db.reviewScore.deleteMany({
+          where: { scoreRunId: scoreRun.id }
+        });
+        
+        // Batch create all scores at once
+        const scoreData = reviewScores.map(rs => ({
+          reviewId: rs.reviewId,
+          scoreRunId: scoreRun.id,
+          baseSentiment: rs.sentiment,
+          timeWeight: 1.0,
+          sourceWeight: 1.0,
+          engagementWeight: 1.0,
+          confidenceWeight: 1.0,
+          weightedImpact: rs.weightedImpact,
+          components: { sentiment: rs.sentiment, impact: rs.weightedImpact },
+        }));
+        
+        // Create in batches of 100 to avoid query size limits
+        const SCORE_BATCH_SIZE = 100;
         let savedScores = 0;
-        for (const rs of reviewScores) {
-          try {
-            await db.reviewScore.upsert({
-              where: {
-                reviewId_scoreRunId: {
-                  reviewId: rs.reviewId,
-                  scoreRunId: scoreRun.id,
-                },
-              },
-              create: {
-                reviewId: rs.reviewId,
-                scoreRunId: scoreRun.id,
-                baseSentiment: rs.sentiment,
-                timeWeight: 1.0, // Simplified - could store actual values
-                sourceWeight: 1.0,
-                engagementWeight: 1.0,
-                confidenceWeight: 1.0,
-                weightedImpact: rs.weightedImpact,
-                components: { sentiment: rs.sentiment, impact: rs.weightedImpact },
-              },
-              update: {
-                baseSentiment: rs.sentiment,
-                weightedImpact: rs.weightedImpact,
-                components: { sentiment: rs.sentiment, impact: rs.weightedImpact },
-              },
-            });
-            savedScores++;
-          } catch (e) {
-            // Log but continue
-            console.error('Error saving review score:', e);
-          }
+        for (let i = 0; i < scoreData.length; i += SCORE_BATCH_SIZE) {
+          const batch = scoreData.slice(i, i + SCORE_BATCH_SIZE);
+          await db.reviewScore.createMany({ data: batch });
+          savedScores += batch.length;
         }
+        
         send({ type: 'info', message: `💾 Saved ${savedScores} review scores` });
 
         // Phase 3: Theme Aggregation

@@ -18,7 +18,7 @@ import { CustomerSummaryPeriod } from '@prisma/client';
 
 const SUMMARY_CONFIG = {
   model: 'gpt-4o-mini',
-  maxTokens: 800,
+  maxTokens: 1200,
   temperature: 0.3, // Lower temperature for more factual output
 };
 
@@ -33,7 +33,7 @@ const PERIOD_CONFIG: Record<CustomerSummaryPeriod, { label: string; days: number
 // SYSTEM PROMPT - STRICT GUIDELINES
 // ============================================================
 
-const SYSTEM_PROMPT = `You are an expert customer feedback analyst for a restaurant. Your task is to summarize customer reviews into a single, accurate paragraph.
+const SYSTEM_PROMPT = `You are an expert customer feedback analyst for a restaurant. Your task is to summarize customer reviews and score each theme.
 
 ## CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
 
@@ -49,13 +49,56 @@ const SYSTEM_PROMPT = `You are an expert customer feedback analyst for a restaur
 
 6. **SPECIFIC BUT HONEST**: Include specific details from reviews (menu items, staff behaviors, etc.) but only when actually mentioned.
 
-7. **OUTPUT FORMAT**: Write a single cohesive paragraph of 3-5 sentences. Be concise but comprehensive.
+7. **SUMMARY FORMAT**: Write a single cohesive paragraph of 3-5 sentences. Be concise but comprehensive.
 
 8. **IF NO REVIEWS**: If provided with zero or very few reviews, state clearly: "Insufficient review data available for this period."
 
 9. **SENTIMENT INDICATORS**: Naturally convey the overall sentiment through your word choice without explicitly stating percentages unless you can verify them.
 
-10. **DATE AWARENESS**: This summary is for reviews from the specified time period only.`;
+10. **DATE AWARENESS**: This summary is for reviews from the specified time period only.
+
+## THEME SCORING RULES:
+
+For each theme mentioned in the reviews, you must assign a score from 0-10 based SOLELY on the sentiment expressed in the reviews:
+- 0-2: Very negative feedback (major complaints, serious issues)
+- 3-4: Mostly negative feedback (complaints outweigh positives)
+- 5: Mixed or neutral feedback (equal positive and negative)
+- 6-7: Mostly positive feedback (positives outweigh negatives)
+- 8-10: Very positive feedback (strong praise, exceptional comments)
+
+**IMPORTANT**: Only score themes that are ACTUALLY mentioned in the reviews. Do not score themes with no mentions.
+
+## "GOOD FOR" RECOMMENDATION:
+
+Based on the reviews, suggest 1-3 occasions or types of customers this restaurant is good for. Examples:
+- "Romantic dinners"
+- "Business meetings"
+- "Family celebrations"
+- "Casual dining with friends"
+- "Special occasions"
+- "Quick lunch"
+- "Date nights"
+- "Group gatherings"
+- "Scenic views"
+- "Outdoor dining"
+
+ONLY suggest occasions that are supported by evidence in the reviews (e.g., if reviews mention "great for our anniversary" or "perfect ambiance for a date", you can suggest "Romantic dinners").
+
+If there's no clear evidence for any occasion, return an empty array.
+
+## OUTPUT FORMAT:
+
+You MUST respond with valid JSON in this exact format:
+{
+  "summary": "Your paragraph summary here...",
+  "themeScores": {
+    "Theme Name": 7.5,
+    "Another Theme": 4.0
+  },
+  "goodFor": ["Romantic dinners", "Special occasions"]
+}
+
+Do not include any text outside the JSON object.`;
 
 // ============================================================
 // OPENAI CLIENT
@@ -79,23 +122,42 @@ interface ReviewForSummary {
   themes: Array<{ theme: { name: string; category: string }; sentiment: string }>;
 }
 
+interface GenerationResult {
+  summary: string;
+  themeScores: Record<string, number>;
+  goodFor: string[];
+  tokens?: { prompt: number; total: number };
+}
+
 async function generateSummary(
   reviews: ReviewForSummary[],
   periodLabel: string,
   tenantName: string
-): Promise<{ summary: string; tokens?: { prompt: number; total: number } }> {
+): Promise<GenerationResult> {
   const openai = getOpenAIClient();
   
   if (!openai) {
-    return { summary: 'AI summary generation is not available. Please configure OpenAI API key.' };
+    return { 
+      summary: 'AI summary generation is not available. Please configure OpenAI API key.',
+      themeScores: {},
+      goodFor: [],
+    };
   }
   
   if (reviews.length === 0) {
-    return { summary: `No customer reviews available for the ${periodLabel} period.` };
+    return { 
+      summary: `No customer reviews available for the ${periodLabel} period.`,
+      themeScores: {},
+      goodFor: [],
+    };
   }
   
   if (reviews.length < 3) {
-    return { summary: `Only ${reviews.length} review(s) available for the ${periodLabel} period - insufficient data for a meaningful summary.` };
+    return { 
+      summary: `Only ${reviews.length} review(s) available for the ${periodLabel} period - insufficient data for a meaningful summary.`,
+      themeScores: {},
+      goodFor: [],
+    };
   }
 
   // Extract unique themes from reviews
@@ -129,26 +191,32 @@ async function generateSummary(
   const reviewContent = reviews
     .map((r, i) => {
       const rating = r.rating ? `[Rating: ${r.rating}/5]` : '';
-      const themes = r.themes.map(t => t.theme.name).join(', ');
+      const themes = r.themes.map(t => `${t.theme.name}(${t.sentiment})`).join(', ');
       return `Review ${i + 1} ${rating}${themes ? ` [Themes: ${themes}]` : ''}:\n"${r.content}"`;
     })
     .join('\n\n');
 
-  const userPrompt = `Generate a summary paragraph for ${tenantName}'s customer feedback from the ${periodLabel} period.
+  const userPrompt = `Generate a summary and theme scores for ${tenantName}'s customer feedback from the ${periodLabel} period.
 
 ## REVIEW STATISTICS:
 - Total reviews: ${reviews.length}
 - Average rating: ${avgRating ? avgRating.toFixed(1) + '/5' : 'N/A'}
 - Date range: ${reviews[reviews.length - 1]?.reviewDate.toLocaleDateString()} to ${reviews[0]?.reviewDate.toLocaleDateString()}
 
-## THEME BREAKDOWN:
+## THEME BREAKDOWN (with sentiment counts):
 ${themeSummary || 'No specific themes identified'}
 
 ## ACTUAL REVIEWS:
 ${reviewContent}
 
 ## YOUR TASK:
-Write a single paragraph (3-5 sentences) summarizing the customer sentiment and key themes from these reviews. Remember: ONLY include information directly from the reviews above. Do not invent or assume anything.`;
+1. Write a summary paragraph (3-5 sentences) about customer sentiment and key themes
+2. Score each theme from 0-10 based on the sentiment expressed in the reviews
+3. Suggest what occasions/customer types this restaurant is good for (based on review evidence only)
+
+Remember: ONLY base your analysis on the reviews above. Do not invent or assume anything.
+
+Respond with JSON only.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -159,20 +227,45 @@ Write a single paragraph (3-5 sentences) summarizing the customer sentiment and 
       ],
       max_tokens: SUMMARY_CONFIG.maxTokens,
       temperature: SUMMARY_CONFIG.temperature,
+      response_format: { type: 'json_object' },
     });
 
-    const summary = response.choices[0]?.message?.content?.trim() || 'Unable to generate summary.';
+    const content = response.choices[0]?.message?.content?.trim() || '{}';
     
-    return {
-      summary,
-      tokens: {
-        prompt: response.usage?.prompt_tokens || 0,
-        total: response.usage?.total_tokens || 0,
-      },
-    };
+    try {
+      const parsed = JSON.parse(content) as { 
+        summary?: string; 
+        themeScores?: Record<string, number>;
+        goodFor?: string[];
+      };
+      return {
+        summary: parsed.summary || 'Unable to generate summary.',
+        themeScores: parsed.themeScores || {},
+        goodFor: parsed.goodFor || [],
+        tokens: {
+          prompt: response.usage?.prompt_tokens || 0,
+          total: response.usage?.total_tokens || 0,
+        },
+      };
+    } catch {
+      // If JSON parsing fails, try to extract the summary from the content
+      return {
+        summary: content,
+        themeScores: {},
+        goodFor: [],
+        tokens: {
+          prompt: response.usage?.prompt_tokens || 0,
+          total: response.usage?.total_tokens || 0,
+        },
+      };
+    }
   } catch (error) {
     console.error('OpenAI API error:', error);
-    return { summary: 'Failed to generate summary due to an API error.' };
+    return { 
+      summary: 'Failed to generate summary due to an API error.',
+      themeScores: {},
+      goodFor: [],
+    };
   }
 }
 
@@ -212,17 +305,33 @@ export async function GET(request: NextRequest) {
       reviewCount: number;
       dateRangeFrom: string;
       dateRangeTo: string;
-      themesIncluded: string[];
+      themeScores: Record<string, number>;
+      goodFor: string[];
       updatedAt: string;
     }> = {};
 
     for (const s of summaries) {
+      // Handle both old format (string[]) and new format (Record<string, number>)
+      let themeScores: Record<string, number> = {};
+      if (s.themesIncluded) {
+        if (Array.isArray(s.themesIncluded)) {
+          // Old format: convert to object with no scores
+          (s.themesIncluded as string[]).forEach(name => {
+            themeScores[name] = 0;
+          });
+        } else {
+          // New format: already an object
+          themeScores = s.themesIncluded as Record<string, number>;
+        }
+      }
+      
       summaryMap[s.periodType] = {
         summary: s.summary,
         reviewCount: s.reviewCount,
         dateRangeFrom: s.dateRangeFrom.toISOString(),
         dateRangeTo: s.dateRangeTo.toISOString(),
-        themesIncluded: (s.themesIncluded as string[]) || [],
+        themeScores,
+        goodFor: (s.goodFor as string[]) || [],
         updatedAt: s.updatedAt.toISOString(),
       };
     }
@@ -278,7 +387,8 @@ export async function POST(request: NextRequest) {
       reviewCount: number;
       dateRangeFrom: string;
       dateRangeTo: string;
-      themesIncluded: string[];
+      themeScores: Record<string, number>;
+      goodFor: string[];
       updatedAt: string;
     }> = {};
 
@@ -321,13 +431,8 @@ export async function POST(request: NextRequest) {
         })),
       }));
 
-      // Extract unique themes
-      const uniqueThemes = [...new Set(
-        reviews.flatMap(r => r.reviewThemes.map(rt => rt.theme.name))
-      )];
-
-      // Generate summary
-      const { summary, tokens } = await generateSummary(
+      // Generate summary with theme scores and goodFor
+      const { summary, themeScores, goodFor, tokens } = await generateSummary(
         reviewsForSummary,
         config.label,
         tenant.name
@@ -348,7 +453,8 @@ export async function POST(request: NextRequest) {
           reviewCount: reviews.length,
           dateRangeFrom: dateFrom,
           dateRangeTo: now,
-          themesIncluded: uniqueThemes,
+          themesIncluded: themeScores, // Store theme scores as JSON
+          goodFor: goodFor, // Store goodFor suggestions as JSON array
           model: SUMMARY_CONFIG.model,
           promptTokens: tokens?.prompt,
           totalTokens: tokens?.total,
@@ -358,7 +464,8 @@ export async function POST(request: NextRequest) {
           reviewCount: reviews.length,
           dateRangeFrom: dateFrom,
           dateRangeTo: now,
-          themesIncluded: uniqueThemes,
+          themesIncluded: themeScores, // Store theme scores as JSON
+          goodFor: goodFor, // Store goodFor suggestions as JSON array
           model: SUMMARY_CONFIG.model,
           promptTokens: tokens?.prompt,
           totalTokens: tokens?.total,
@@ -370,7 +477,8 @@ export async function POST(request: NextRequest) {
         reviewCount: savedSummary.reviewCount,
         dateRangeFrom: savedSummary.dateRangeFrom.toISOString(),
         dateRangeTo: savedSummary.dateRangeTo.toISOString(),
-        themesIncluded: uniqueThemes,
+        themeScores,
+        goodFor,
         updatedAt: savedSummary.updatedAt.toISOString(),
       };
     }

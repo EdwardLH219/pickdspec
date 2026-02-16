@@ -1217,7 +1217,8 @@ model CustomerSummary {
   reviewCount   Int // Number of reviews included in summary
   dateRangeFrom DateTime // Start of review date range
   dateRangeTo   DateTime // End of review date range
-  themesIncluded Json? // Array of theme names mentioned in summary
+  themesIncluded Json? // Theme scores: { "themeName": score }
+  goodFor        Json? // Array of occasion suggestions: ["Romantic dinners", "Business meetings"]
 
   // Generation metadata
   model        String // AI model used (e.g., "gpt-4o-mini")
