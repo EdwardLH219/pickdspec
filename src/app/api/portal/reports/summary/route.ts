@@ -18,7 +18,9 @@ import { CustomerSummaryPeriod } from '@prisma/client';
 
 const SUMMARY_CONFIG = {
   model: 'gpt-5-mini',
-  maxCompletionTokens: 1200,
+  // GPT-5 models use reasoning tokens internally, so we need a higher limit
+  // to allow room for both reasoning (~2000-4000) and actual output (~1000)
+  maxCompletionTokens: 8000,
   // Note: GPT-5-mini only supports default temperature (1)
 };
 
