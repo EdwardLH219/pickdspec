@@ -109,7 +109,7 @@ export async function GET(
         status: 200,
         headers: {
           'Content-Type': 'image/svg+xml',
-          'Cache-Control': 'private, max-age=3600',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       });
 
@@ -127,7 +127,7 @@ export async function GET(
 
       const headers: Record<string, string> = {
         'Content-Type': 'image/png',
-        'Cache-Control': 'private, max-age=3600',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       };
 
       if (download) {
