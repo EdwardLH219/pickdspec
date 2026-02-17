@@ -18,7 +18,7 @@ import { CustomerSummaryPeriod } from '@prisma/client';
 
 const SUMMARY_CONFIG = {
   model: 'gpt-5-mini',
-  maxTokens: 1200,
+  maxCompletionTokens: 1200,
   temperature: 0.3, // Lower temperature for more factual output
 };
 
@@ -225,7 +225,7 @@ Respond with JSON only.`;
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: SUMMARY_CONFIG.maxTokens,
+      max_completion_tokens: SUMMARY_CONFIG.maxCompletionTokens,
       temperature: SUMMARY_CONFIG.temperature,
       response_format: { type: 'json_object' },
     });
