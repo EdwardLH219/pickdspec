@@ -95,6 +95,14 @@ model Tenant {
   // Customer summaries
   customerSummaries CustomerSummary[]
 
+  // Till Slip Review Channel
+  tillReviewSettings     TillReviewSettings?
+  tillReceipts           TillReceipt[]
+  tillReviewSubmissions  TillReviewSubmission[]
+  
+  // API Keys for POS integration
+  apiKeys ApiKey[]
+
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, isActive])
@@ -320,6 +328,7 @@ enum SourceType {
   WEBSITE
   INSTAGRAM
   TWITTER
+  TILL_SLIP // QR code feedback from receipts
 }
 
 enum SyncFrequency {
@@ -429,10 +438,14 @@ model Review {
   id          String    @id @default(uuid())
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  connectorId String
-  connector   Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  connectorId String?
+  connector   Connector? @relation(fields: [connectorId], references: [id], onDelete: Cascade)
 
-  externalReviewId String
+  externalReviewId String?
+  
+  // Till Slip source linkage (when source = TILL_SLIP)
+  tillReviewSubmissionId String?              @unique
+  tillReviewSubmission   TillReviewSubmission? @relation(fields: [tillReviewSubmissionId], references: [id], onDelete: SetNull)
 
   // Core data
   rating     Int? // 1-5 (optional, some sources don't have ratings)
@@ -470,12 +483,13 @@ model Review {
   reviewThemes ReviewTheme[]
   reviewScores ReviewScore[]
 
-  @@unique([connectorId, externalReviewId])
+  @@unique([connectorId, externalReviewId]) // For external connector reviews
   @@index([tenantId, reviewDate])
   @@index([tenantId, reviewDate, rating])
   @@index([connectorId, reviewDate])
   @@index([contentHash])
   @@index([detectedLanguage])
+  @@index([tillReviewSubmissionId])
 }
 
 model Theme {
@@ -1237,6 +1251,197 @@ enum CustomerSummaryPeriod {
   SIX_MONTHS
   THREE_MONTHS
   TWO_WEEKS
+}
+
+// ============================================================
+// TILL SLIP REVIEW CHANNEL
+// ============================================================
+
+// Settings for till slip QR code feedback collection per branch
+model TillReviewSettings {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Configuration
+  isActive      Boolean             @default(false)
+  shortCode     String              @unique // URL-safe code, e.g., "bn-x7k9"
+  
+  // Incentive configuration
+  incentiveType        TillIncentiveType @default(NONE)
+  incentiveTitle       String?           // e.g., "Get 10% OFF"
+  incentiveDescription String?           // e.g., "Your next visit"
+  discountPercent      Int?              // For DISCOUNT type (5-50)
+  discountTerms        String?           // Terms and conditions
+  prizeDrawTitle       String?           // e.g., "WIN a Free Meal for 4"
+  prizeDrawDescription String?           // e.g., "Every review is an entry!"
+  prizeDrawTerms       String?           // Terms URL or text
+  
+  // Branding
+  headerColor String? // Hex color for header background
+  accentColor String? // Hex color for buttons/accents
+  logoUrl     String? // Custom logo URL
+  
+  // Behavior settings
+  tokenExpiryDays        Int     @default(30)
+  allowRepeatSubmissions Boolean @default(false)
+  requireReceiptNumber   Boolean @default(false)
+  redirectToGoogleReview Boolean @default(true)
+  googleReviewUrl        String? // Direct Google review link
+  
+  // Theme customization (null = use defaults)
+  themeOptions Json? // Override theme list: ["Service", "Food", "Value", ...]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  receipts TillReceipt[]
+  
+  @@unique([tenantId]) // One settings record per tenant/branch
+  @@index([shortCode])
+  @@index([tenantId, isActive])
+}
+
+enum TillIncentiveType {
+  NONE        // Just "thank you"
+  DISCOUNT    // Generate discount code
+  PRIZE_DRAW  // Entry into prize draw
+  CUSTOM      // Custom incentive (use title/description)
+}
+
+// Receipt tokens for QR code scans
+model TillReceipt {
+  id         String @id @default(uuid())
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  settingsId String
+  settings   TillReviewSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  
+  // Receipt identification
+  receiptRef       String?  // POS receipt number (optional, user-entered)
+  receiptRefHash   String?  // SHA-256 hash of receiptRef + tenant salt (for duplicate check)
+  receiptLastFour  String?  // Last 4 chars for display
+  
+  // Token for URL
+  token          String   @unique // URL-safe token (12 char base62)
+  tokenHash      String   @unique // SHA-256 of token for lookup
+  
+  // Lifecycle
+  status    TillReceiptStatus @default(ISSUED)
+  issuedAt  DateTime          @default(now())
+  expiresAt DateTime
+  
+  // Optional metadata from POS integration (future)
+  meta Json? // { tillId, cashierId, orderTotal, tableNumber, etc. }
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  submission TillReviewSubmission?
+  
+  @@index([tenantId, status])
+  @@index([settingsId, status])
+  @@index([token])
+  @@index([tokenHash])
+  @@index([tenantId, receiptRefHash]) // For duplicate receipt check
+  @@index([expiresAt]) // For cleanup jobs
+}
+
+enum TillReceiptStatus {
+  ISSUED    // Token generated, awaiting submission
+  SUBMITTED // Feedback received
+  REDEEMED  // Incentive code used (for DISCOUNT type)
+  EXPIRED   // Token expired without submission
+}
+
+// Customer feedback submissions
+model TillReviewSubmission {
+  id         String @id @default(uuid())
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receiptId  String @unique
+  receipt    TillReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  
+  // Rating
+  overallRating Int // 1-5 stars
+  
+  // Theme feedback (multi-select chips)
+  positiveThemes String[] @default([]) // ["Service", "Food Quality", ...]
+  negativeThemes String[] @default([]) // ["Wait Time", "Value", ...]
+  
+  // Optional detail text
+  positiveDetail String? // "What was great?" free text
+  negativeDetail String? // "What could be better?" free text
+  anythingElse   String? // "Anything else?" free text
+  
+  // Consent & contact
+  consentGiven  Boolean @default(false) // Agreed to terms
+  contactOptIn  Boolean @default(false) // Opted in for follow-up contact
+  contactEmail  String?                 // Only stored if contactOptIn = true
+  
+  // Anti-abuse tracking
+  ipHash        String? // SHA-256 of IP address
+  userAgentHash String? // SHA-256 of user agent
+  deviceFingerprint String? // Browser fingerprint hash
+  
+  // Spam detection
+  spamScore Float   @default(0) // 0-1 from reCAPTCHA or heuristics
+  isFlagged Boolean @default(false) // Manually flagged for review
+  
+  // Incentive code (if applicable)
+  incentiveCode       String?   // Generated code, e.g., "FB-BN7K-9X2A"
+  incentiveCodeExpiry DateTime? // When the code expires
+  incentiveRedeemed   Boolean   @default(false)
+  incentiveRedeemedAt DateTime?
+  incentiveRedeemedBy String?   // Staff user ID who redeemed
+  
+  // Short redemption code for staff verification (6 chars, human-friendly)
+  redemptionCode String? @unique // e.g., "A3K9M2" - derived from receipt, not guessable
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Link to normalized Review record
+  review Review?
+  
+  @@index([tenantId, createdAt])
+  @@index([receiptId])
+  @@index([incentiveCode])
+  @@index([tenantId, isFlagged])
+  @@index([deviceFingerprint])
+  @@index([redemptionCode])
+}
+
+// ============================================================
+// API KEYS (for POS integration)
+// ============================================================
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name      String   // Human-readable name, e.g., "POS Integration"
+  keyHash   String   @unique // SHA-256 hash of the API key
+  keyPrefix String   // First 8 chars of key for identification (e.g., "pk_live_")
+  
+  permissions String[] @default([]) // ["till:issue", "till:read", "*"]
+  
+  isActive  Boolean  @default(true)
+  expiresAt DateTime?
+  
+  lastUsedAt DateTime?
+  usageCount Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  // User ID who created the key
+  
+  @@index([tenantId])
+  @@index([keyHash])
+  @@index([isActive, expiresAt])
 }
 
 // ============================================================

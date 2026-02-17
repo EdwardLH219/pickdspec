@@ -64,6 +64,8 @@ const formatSourceType = (source: string): string => {
     'WEBSITE': 'Website',
     'INSTAGRAM': 'Instagram',
     'TWITTER': 'Twitter',
+    'TILL_SLIP': 'Till Slip Feedback',
+    'CSV': 'CSV Import',
   };
   return sourceMap[source] || source;
 };
@@ -542,6 +544,8 @@ export default function ReportsPage() {
                     <SelectItem value="HELLOPETER">HelloPeter</SelectItem>
                     <SelectItem value="FACEBOOK">Facebook</SelectItem>
                     <SelectItem value="TRIPADVISOR">TripAdvisor</SelectItem>
+                    <SelectItem value="TILL_SLIP">Till Slip</SelectItem>
+                    <SelectItem value="CSV">CSV Import</SelectItem>
                   </SelectContent>
                 </Select>
 

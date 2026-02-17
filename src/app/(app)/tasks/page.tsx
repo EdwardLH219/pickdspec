@@ -52,6 +52,10 @@ import {
   Repeat,
   Lightbulb,
   Sparkles,
+  QrCode,
+  Gift,
+  Percent,
+  BarChart3,
 } from "lucide-react";
 import {
   LineChart,
@@ -123,6 +127,41 @@ interface Theme {
   name: string;
 }
 
+interface TillMetrics {
+  responseRate: {
+    receiptsIssued: number;
+    receiptsSubmitted: number;
+    rate: number | null;
+    ratePercent: number | null;
+  };
+  submissions: {
+    total: number;
+    avgRating: number | null;
+    flaggedCount: number;
+    flaggedRate: number;
+  };
+  incentives: {
+    type: string;
+    discountPercent: number | null;
+    codesIssued: number;
+    codesRedeemed: number;
+    uptakeRate: number | null;
+    uptakePercent: number | null;
+  };
+  channelStatus: {
+    isActive: boolean;
+    hasSettings: boolean;
+  };
+}
+
+// Available source types for filtering impact data
+const SOURCE_TYPES = [
+  { id: 'all', label: 'All Sources', icon: BarChart3 },
+  { id: 'GOOGLE', label: 'Google', icon: null },
+  { id: 'HELLOPETER', label: 'HelloPeter', icon: null },
+  { id: 'TILL_SLIP', label: 'Till Slip', icon: QrCode },
+] as const;
+
 // Toast handler for created query param
 function CreatedToastHandler() {
   const searchParams = useSearchParams();
@@ -169,6 +208,13 @@ function TasksContent() {
   } | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
 
+  // Till Slip metrics for impact view
+  const [tillMetrics, setTillMetrics] = useState<TillMetrics | null>(null);
+  const [tillMetricsLoading, setTillMetricsLoading] = useState(false);
+  
+  // Source filter for impact breakdown
+  const [impactSourceFilter, setImpactSourceFilter] = useState<string>('all');
+
   // Fetch timeline data when viewing a completed task
   const fetchTimeline = async (taskId: string) => {
     setTimelineLoading(true);
@@ -185,6 +231,24 @@ function TasksContent() {
       console.error('Failed to fetch timeline:', e);
     } finally {
       setTimelineLoading(false);
+    }
+  };
+
+  // Fetch Till Slip metrics for impact view
+  const fetchTillMetrics = async () => {
+    if (!selectedTenantId) return;
+    
+    setTillMetricsLoading(true);
+    try {
+      const res = await fetch(`/api/portal/till-metrics?tenantId=${selectedTenantId}&periodDays=30`);
+      if (res.ok) {
+        const data = await res.json();
+        setTillMetrics(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch till metrics:', e);
+    } finally {
+      setTillMetricsLoading(false);
     }
   };
 
@@ -696,9 +760,14 @@ function TasksContent() {
                         onClick={() => {
                           setSelectedTask(task);
                           setDetailOpen(true);
+                          setImpactSourceFilter('all');
                           // Fetch timeline for completed tasks with fixScore
                           if (task.status === 'COMPLETED' && task.themeId) {
                             fetchTimeline(task.id);
+                          }
+                          // Fetch Till Slip metrics for impact view
+                          if (task.status === 'COMPLETED') {
+                            fetchTillMetrics();
                           }
                         }}
                       >
@@ -767,6 +836,30 @@ function TasksContent() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
+                    {/* Source Filter Chips */}
+                    <div className="mb-4">
+                      <Label className="text-xs text-muted-foreground mb-2 block">Filter by Source</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {SOURCE_TYPES.map((source) => {
+                          const isSelected = impactSourceFilter === source.id;
+                          const Icon = source.icon;
+                          return (
+                            <button
+                              key={source.id}
+                              onClick={() => setImpactSourceFilter(source.id)}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                              }`}
+                            >
+                              {Icon && <Icon className="h-3 w-3" />}
+                              {source.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                     {!selectedTask.fixScore ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-4 w-4 animate-pulse" />
@@ -812,6 +905,96 @@ function TasksContent() {
                             <Badge variant="outline">{selectedTask.fixScore.confidence}</Badge>
                           </div>
                         </div>
+
+                        {/* Till Slip Channel Metrics */}
+                        {(impactSourceFilter === 'all' || impactSourceFilter === 'TILL_SLIP') && (
+                          <div className="border-t pt-4 mt-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <QrCode className="h-4 w-4 text-purple-600" />
+                              <span className="text-sm font-medium">Till Slip Channel</span>
+                              {tillMetrics?.channelStatus.isActive && (
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                  Active
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {tillMetricsLoading ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                <Clock className="h-4 w-4 animate-spin" />
+                                Loading metrics...
+                              </div>
+                            ) : tillMetrics ? (
+                              <div className="space-y-3">
+                                {/* Response Rate */}
+                                <div className="flex items-center justify-between bg-purple-50 rounded-lg p-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <BarChart3 className="h-4 w-4 text-purple-600" />
+                                    <div>
+                                      <p className="text-sm font-medium">Response Rate</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {tillMetrics.responseRate.receiptsSubmitted} of {tillMetrics.responseRate.receiptsIssued} receipts
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span className="text-lg font-bold text-purple-700">
+                                    {tillMetrics.responseRate.ratePercent !== null 
+                                      ? `${tillMetrics.responseRate.ratePercent}%`
+                                      : 'N/A'}
+                                  </span>
+                                </div>
+
+                                {/* Incentive Uptake */}
+                                {tillMetrics.incentives.type !== 'NONE' && (
+                                  <div className="flex items-center justify-between bg-amber-50 rounded-lg p-2.5">
+                                    <div className="flex items-center gap-2">
+                                      {tillMetrics.incentives.type === 'DISCOUNT' ? (
+                                        <Percent className="h-4 w-4 text-amber-600" />
+                                      ) : (
+                                        <Gift className="h-4 w-4 text-amber-600" />
+                                      )}
+                                      <div>
+                                        <p className="text-sm font-medium">Incentive Uptake</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {tillMetrics.incentives.codesRedeemed} of {tillMetrics.incentives.codesIssued} codes redeemed
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span className="text-lg font-bold text-amber-700">
+                                      {tillMetrics.incentives.uptakePercent !== null 
+                                        ? `${tillMetrics.incentives.uptakePercent}%`
+                                        : 'N/A'}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Submissions Summary */}
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="bg-gray-50 rounded p-2">
+                                    <p className="text-muted-foreground">Total Submissions</p>
+                                    <p className="font-semibold">{tillMetrics.submissions.total}</p>
+                                  </div>
+                                  <div className="bg-gray-50 rounded p-2">
+                                    <p className="text-muted-foreground">Avg Rating</p>
+                                    <p className="font-semibold">
+                                      {tillMetrics.submissions.avgRating !== null 
+                                        ? `${tillMetrics.submissions.avgRating}/5`
+                                        : 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground italic">
+                                  Note: Till Slip metrics are informational only and do not affect sentiment scoring.
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground py-2">
+                                No Till Slip data available for this period.
+                              </p>
+                            )}
+                          </div>
+                        )}
                         
                         {/* Timeline Chart */}
                         {timelineLoading ? (

@@ -64,7 +64,13 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = { tenantId };
     
     if (sourceType) {
-      where.connector = { sourceType };
+      // Handle TILL_SLIP source type specially (no connector)
+      if (sourceType === 'TILL_SLIP') {
+        where.connectorId = null;
+        where.tillReviewSubmissionId = { not: null };
+      } else {
+        where.connector = { sourceType };
+      }
     }
     
     if (themeId) {
@@ -134,8 +140,8 @@ export async function GET(request: NextRequest) {
       rating: r.rating,
       reviewDate: r.reviewDate,
       authorName: sanitizeAuthorName(r.authorName),
-      source: r.connector.sourceType,
-      sourceName: escapeHtml(r.connector.name),
+      source: r.connector?.sourceType ?? 'TILL_SLIP',
+      sourceName: r.connector ? escapeHtml(r.connector.name) : 'Till Slip Feedback',
       externalUrl: null, // Not stored in current schema
       sentiment: r.reviewScores[0]?.baseSentiment ?? null,
       weightedImpact: r.reviewScores[0]?.weightedImpact ?? null,

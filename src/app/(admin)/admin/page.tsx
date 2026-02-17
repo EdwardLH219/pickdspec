@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Settings, Users, Activity, Upload, Scale, Search, ClipboardList, DollarSign } from 'lucide-react';
+import { Shield, Settings, Users, Activity, Upload, Scale, Search, ClipboardList, DollarSign, MessageSquareWarning } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function AdminPage() {
@@ -172,6 +172,27 @@ export default async function AdminPage() {
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 Track all admin actions: parameter changes, score runs, connector edits, and more.
+              </p>
+              <Badge variant="default" className="mt-4">Active</Badge>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* Till Slip Moderation */}
+        <Link href="/admin/till-reviews/moderation" className="block">
+          <Card className="hover:border-primary transition-colors cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquareWarning className="h-5 w-5" />
+                Feedback Moderation
+              </CardTitle>
+              <CardDescription>
+                Review flagged submissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Moderate flagged till slip feedback submissions. Approve or reject spam/suspicious content.
               </p>
               <Badge variant="default" className="mt-4">Active</Badge>
             </CardContent>

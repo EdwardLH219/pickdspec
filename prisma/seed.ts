@@ -14,7 +14,8 @@
  * Run with: npx prisma db seed
  */
 
-import { PrismaClient, UserRole, ThemeCategory, Sentiment, MemberRole, AccessLevel, SourceType, ConnectorStatus, SyncFrequency, TaskPriority, TaskStatus, RecommendationSeverity, RecommendationStatus, RecommendationCategory, ParameterStatus, AuditAction } from '@prisma/client';
+import { PrismaClient, UserRole, ThemeCategory, Sentiment, MemberRole, AccessLevel, SourceType, ConnectorStatus, SyncFrequency, TaskPriority, TaskStatus, RecommendationSeverity, RecommendationStatus, RecommendationCategory, ParameterStatus, AuditAction, TillIncentiveType } from '@prisma/client';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config';
 
@@ -661,6 +662,7 @@ async function main() {
     source: {
       weights: {
         google: 1.20,
+        google_outscraper: 1.20,
         hellopeter: 1.15,
         tripadvisor: 1.00,
         facebook: 0.90,
@@ -670,6 +672,7 @@ async function main() {
         website: 0.80,
         instagram: 0.80,
         twitter: 0.70,
+        till_slip: 1.10, // Direct customer feedback from receipt QR codes - high credibility
       },
       min_weight: 0.60,
       max_weight: 1.40,
@@ -677,10 +680,12 @@ async function main() {
     engagement: {
       enabled_by_source: {
         google: true,
+        google_outscraper: true,
         facebook: true,
         tripadvisor: true,
         hellopeter: false,
         yelp: true,
+        till_slip: false, // Till slip reviews don't have public engagement metrics
       },
       cap: 1.30,
       formula: 'log_scale',
@@ -763,6 +768,146 @@ async function main() {
   console.log('  ✓ Created sample audit log entries');
 
   // ============================================================
+  // 13. CREATE TILL SLIP REVIEW SETTINGS
+  // ============================================================
+  console.log('\nCreating Till Slip Review settings...');
+  
+  // Generate short codes for each branch
+  function generateShortCode(tenantSlug: string): string {
+    const randomPart = crypto.randomBytes(3).toString('hex').substring(0, 4);
+    return `${tenantSlug.substring(0, 3)}-${randomPart}`.toLowerCase();
+  }
+  
+  const tillSettings = [
+    {
+      tenantId: createdBranches[0], // Waterfront
+      shortCode: generateShortCode('waterfront'),
+      isActive: true,
+      incentiveType: TillIncentiveType.DISCOUNT,
+      incentiveTitle: 'Get 10% OFF',
+      incentiveDescription: 'Your next visit as a thank you for your feedback',
+      discountPercent: 10,
+      discountTerms: 'Valid for 30 days. One use per customer. Cannot be combined with other offers.',
+      headerColor: '#1e40af',
+      accentColor: '#3b82f6',
+      tokenExpiryDays: 30,
+      requireReceiptNumber: false,
+      redirectToGoogleReview: true,
+      googleReviewUrl: 'https://g.page/r/CaAaBbCcDdEeFf/review',
+    },
+    {
+      tenantId: createdBranches[1], // Stellenbosch  
+      shortCode: generateShortCode('stellenbosch'),
+      isActive: true,
+      incentiveType: TillIncentiveType.PRIZE_DRAW,
+      incentiveTitle: 'WIN a Free Dinner for 4!',
+      incentiveDescription: 'Every review is an entry into our monthly draw',
+      prizeDrawTitle: 'Monthly Dinner Giveaway',
+      prizeDrawDescription: 'Win a complimentary dinner for 4 worth R2,000',
+      prizeDrawTerms: 'Draw held last Friday of each month. Winner contacted via email. Must be 18+.',
+      headerColor: '#7c2d12',
+      accentColor: '#ea580c',
+      tokenExpiryDays: 60,
+      requireReceiptNumber: true,
+      redirectToGoogleReview: true,
+      googleReviewUrl: 'https://g.page/r/XxYyZzAaBbCcDd/review',
+    },
+  ];
+
+  for (const settings of tillSettings) {
+    await prisma.tillReviewSettings.upsert({
+      where: { tenantId: settings.tenantId },
+      update: {},
+      create: settings,
+    });
+    console.log(`  ✓ Till Slip settings created for tenant ${settings.tenantId} (${settings.shortCode})`);
+  }
+
+  // Create a sample receipt and submission for the first branch
+  console.log('\nCreating sample Till Slip receipt and submission...');
+  
+  const sampleToken = crypto.randomBytes(9).toString('base64url').substring(0, 12);
+  const sampleTokenHash = crypto.createHash('sha256').update(sampleToken).digest('hex');
+  
+  const firstTillSettings = await prisma.tillReviewSettings.findUnique({
+    where: { tenantId: createdBranches[0] }
+  });
+
+  if (firstTillSettings) {
+    const sampleReceipt = await prisma.tillReceipt.upsert({
+      where: { token: sampleToken },
+      update: {},
+      create: {
+        tenantId: createdBranches[0],
+        settingsId: firstTillSettings.id,
+        receiptRef: 'INV-2026-001234',
+        receiptLastFour: '1234',
+        token: sampleToken,
+        tokenHash: sampleTokenHash,
+        status: 'SUBMITTED',
+        issuedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        expiresAt: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000), // 28 days from now
+        meta: { tableNumber: 'T12', covers: 4 },
+      },
+    });
+    console.log(`  ✓ Sample receipt created: ${sampleReceipt.receiptRef}`);
+
+    // Create a submission for this receipt
+    const sampleSubmission = await prisma.tillReviewSubmission.upsert({
+      where: { receiptId: sampleReceipt.id },
+      update: {},
+      create: {
+        tenantId: createdBranches[0],
+        receiptId: sampleReceipt.id,
+        overallRating: 4,
+        positiveThemes: ['Food Quality', 'Service', 'Ambiance'],
+        negativeThemes: ['Wait Time'],
+        positiveDetail: 'The seafood pasta was incredible and our waiter James was so attentive!',
+        negativeDetail: 'Had to wait about 25 minutes for our main course.',
+        anythingElse: null,
+        consentGiven: true,
+        contactOptIn: false,
+        ipHash: crypto.createHash('sha256').update('192.168.1.100').digest('hex'),
+        userAgentHash: crypto.createHash('sha256').update('Mozilla/5.0 Safari').digest('hex'),
+        spamScore: 0.1,
+        isFlagged: false,
+        incentiveCode: 'FB-WF7K-9X2A',
+        incentiveCodeExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        incentiveRedeemed: false,
+      },
+    });
+    console.log(`  ✓ Sample submission created with rating: ${sampleSubmission.overallRating}/5`);
+
+    // Create normalized Review record from the submission
+    const normalizedReview = await prisma.review.create({
+      data: {
+        tenantId: createdBranches[0],
+        connectorId: null, // No connector for Till Slip reviews
+        externalReviewId: null,
+        tillReviewSubmissionId: sampleSubmission.id,
+        rating: sampleSubmission.overallRating,
+        title: null,
+        content: [
+          sampleSubmission.positiveDetail,
+          sampleSubmission.negativeDetail,
+          sampleSubmission.anythingElse,
+        ].filter(Boolean).join(' '),
+        authorName: 'Till Slip Customer',
+        reviewDate: sampleSubmission.createdAt,
+        detectedLanguage: 'en',
+        textLength: (sampleSubmission.positiveDetail?.length || 0) + (sampleSubmission.negativeDetail?.length || 0),
+        rawData: {
+          source: 'till_slip',
+          submissionId: sampleSubmission.id,
+          positiveThemes: sampleSubmission.positiveThemes,
+          negativeThemes: sampleSubmission.negativeThemes,
+        },
+      },
+    });
+    console.log(`  ✓ Normalized Review record created from Till Slip submission`);
+  }
+
+  // ============================================================
   // SUMMARY
   // ============================================================
   console.log('\n========================================');
@@ -799,6 +944,11 @@ async function main() {
   console.log(`  Reviews: ${sampleReviews.length}`);
   console.log(`  Recommendations: ${recommendations.length}`);
   console.log(`  Tasks: ${tasks.length}`);
+  console.log(`  Till Slip Settings: ${tillSettings.length}`);
+  console.log('----------------------------------------');
+  console.log('\n📱 Till Slip QR Codes:');
+  console.log('  Waterfront: Discount 10% off');
+  console.log('  Stellenbosch: Prize Draw entry');
   console.log('----------------------------------------\n');
 }
 

@@ -131,14 +131,22 @@ export async function GET(request: NextRequest) {
       _count: { id: true },
     });
 
-    // Enrich with connector info
-    const connectorIds = sourceStats.map(s => s.connectorId);
+    // Enrich with connector info (filter out null connectorIds for Till Slip reviews)
+    const connectorIds = sourceStats.map(s => s.connectorId).filter((id): id is string => id !== null);
     const connectors = await db.connector.findMany({
       where: { id: { in: connectorIds } },
       select: { id: true, sourceType: true, name: true },
     });
 
     const sourceDistribution = sourceStats.map(s => {
+      // Handle Till Slip reviews (no connector)
+      if (!s.connectorId) {
+        return {
+          source: 'TILL_SLIP' as const,
+          sourceName: 'Till Slip Feedback',
+          count: s._count.id,
+        };
+      }
       const connector = connectors.find(c => c.id === s.connectorId);
       return {
         source: connector?.sourceType ?? 'UNKNOWN',

@@ -295,7 +295,7 @@ export async function executeScoreRun(config: ScoreRunConfig): Promise<ScoreRunR
         content: review.content,
         rating: review.rating,
         reviewDate: review.reviewDate,
-        sourceType: review.connector.sourceType,
+        sourceType: review.connector?.sourceType ?? 'TILL_SLIP',
         likesCount: review.likesCount,
         repliesCount: review.repliesCount,
         helpfulCount: review.helpfulCount,

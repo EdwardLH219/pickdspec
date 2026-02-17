@@ -37,7 +37,9 @@ import {
   DollarSign,
   Users,
   HelpCircle,
+  QrCode,
 } from "lucide-react";
+import Link from "next/link";
 import {
   Tooltip,
   TooltipContent,
@@ -289,6 +291,22 @@ export function BranchesTab({ initialBranches }: BranchesTabProps) {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  asChild
+                                >
+                                  <Link href={`/branches/${branch.id}/till-reviews`}>
+                                    <QrCode className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Receipt Feedback QR</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button
                             variant="ghost"
                             size="icon"
