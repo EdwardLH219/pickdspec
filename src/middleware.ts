@@ -23,6 +23,8 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/api/auth',
+  '/r/',              // Public feedback pages (Till Slip QR codes)
+  '/api/feedback/',   // Public feedback submission API
 ];
 
 /**
