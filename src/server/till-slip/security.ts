@@ -10,6 +10,7 @@
  */
 
 import { db } from '@/server/db';
+import { Prisma } from '@prisma/client';
 
 // ============================================================
 // XSS SANITIZATION
@@ -255,12 +256,12 @@ export async function logTillSlipAudit(entry: TillSlipAuditEntry): Promise<strin
         resourceType: entry.resourceType || 'TillSlipSettings',
         resourceId: entry.resourceId,
         tenantId: entry.tenantId,
-        oldValue: entry.oldValue || undefined,
-        newValue: entry.newValue || undefined,
+        oldValue: entry.oldValue ? (entry.oldValue as Prisma.InputJsonValue) : undefined,
+        newValue: entry.newValue ? (entry.newValue as Prisma.InputJsonValue) : undefined,
         metadata: {
           tillSlipEvent: entry.event,
           ...entry.metadata,
-        },
+        } as Prisma.InputJsonValue,
         ipAddress: entry.ipAddress,
       },
     });
