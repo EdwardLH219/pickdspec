@@ -53,12 +53,14 @@ function generateShortCode(tenantSlug: string): string {
 
 /**
  * Check if user has admin access (can edit) or just view access
- * OWNER in organization or PICKD_ADMIN can edit
+ * OWNER (platform or organization level) or PICKD_ADMIN can edit
  */
 function canEditSettings(membershipRole: string | null, platformRole: string): boolean {
   // Pick'd admins can always edit
   if (platformRole === 'PICKD_ADMIN') return true;
-  // Organization owners can edit
+  // Platform-level owners can edit (UserRole.OWNER)
+  if (platformRole === 'OWNER') return true;
+  // Organization-level owners can edit (MemberRole.OWNER)
   return membershipRole === 'OWNER';
 }
 
