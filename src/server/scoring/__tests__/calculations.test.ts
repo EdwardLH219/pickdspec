@@ -533,11 +533,11 @@ describe('calculateThemeScore010', () => {
       const baseScore = calculateThemeScore010(0.5);
       expect(baseScore).toBe(7.5);
       
-      // With 30% negative ratio and default 0.3 strength:
-      // penalty = 0.3² × 0.3 × (7.5 - 5) = 0.09 × 0.3 × 2.5 = 0.0675
+      // With 30% negative ratio and default 0.6 strength:
+      // penalty = 0.3² × 0.6 × (7.5 - 5) = 0.09 × 0.6 × 2.5 = 0.135
       const adjustedScore = calculateThemeScore010(0.5, 0.3);
       expect(adjustedScore).toBeLessThan(baseScore);
-      expect(adjustedScore).toBeCloseTo(7.43, 1);
+      expect(adjustedScore).toBeCloseTo(7.37, 1);
     });
     
     it('should not adjust scores at or below 5', () => {

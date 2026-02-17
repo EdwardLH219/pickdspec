@@ -357,8 +357,8 @@ export async function POST(request: NextRequest) {
         // Calculate theme scores and persist them
         const themeScores: Array<{ name: string; sentiment: number; score010: number; mentions: number }> = [];
         
-        // Negative adjustment strength (0.3 = moderate adjustment to bring scores closer to AI perception)
-        const NEGATIVE_ADJUSTMENT_STRENGTH = 0.3;
+        // Negative adjustment strength (0.6 = stronger adjustment to bring scores closer to AI perception)
+        const NEGATIVE_ADJUSTMENT_STRENGTH = 0.6;
 
         for (const [themeId, data] of themeGroups) {
           const sumWr = data.impacts.reduce((a, b) => a + b, 0);
