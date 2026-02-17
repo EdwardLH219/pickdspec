@@ -66,6 +66,7 @@ export interface VerifyTokenResult {
     headerColor: string | null;
     accentColor: string | null;
     logoUrl: string | null;
+    tokenExpiryDays: number;
     requireReceiptNumber: boolean;
     redirectToGoogleReview: boolean;
     googleReviewUrl: string | null;
