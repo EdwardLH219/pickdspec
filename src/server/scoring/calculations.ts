@@ -371,7 +371,7 @@ export function calculateSeverity(themeSentiment: number, mentionCount: number):
  */
 export function aggregateThemeScores(
   input: ThemeAggregationInput,
-  negativeAdjustmentStrength: number = 0.6
+  negativeAdjustmentStrength: number = 1.2
 ): ThemeAggregationResult {
   const { themeId, reviewScores } = input;
   
