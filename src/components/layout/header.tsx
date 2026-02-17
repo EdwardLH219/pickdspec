@@ -5,6 +5,7 @@ import { DateRangePicker } from "./date-range-picker";
 import { UserMenu } from "./user-menu";
 import { MobileNav } from "./mobile-nav";
 import { Separator } from "@/components/ui/separator";
+import { ScoringIndicator } from "./scoring-indicator";
 
 export function Header() {
   return (
@@ -24,6 +25,9 @@ export function Header() {
           <BranchSwitcher />
         </div>
       </div>
+
+      {/* Scoring status indicator (shows when minimized) */}
+      <ScoringIndicator />
 
       {/* User menu */}
       <UserMenu />

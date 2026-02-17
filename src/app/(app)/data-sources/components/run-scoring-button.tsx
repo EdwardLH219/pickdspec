@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Loader2, CheckCircle2, AlertCircle, Terminal } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, AlertCircle, Terminal, Minimize2 } from 'lucide-react';
 import { ScoringResultsModal } from './scoring-results-modal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useScoringStatusOptional } from '@/contexts/scoring-status-context';
 
 interface RunScoringButtonProps {
   tenantId: string;
@@ -26,6 +27,7 @@ interface LogEntry {
 }
 
 export function RunScoringButton({ tenantId }: RunScoringButtonProps) {
+  const scoringContext = useScoringStatusOptional();
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [scoringResults, setScoringResults] = useState<ScoringResults | null>(null);
@@ -34,6 +36,16 @@ export function RunScoringButton({ tenantId }: RunScoringButtonProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(0);
+
+  // Sync with context for expand/minimize
+  useEffect(() => {
+    if (scoringContext && !scoringContext.state.isMinimized && scoringContext.state.status !== 'idle') {
+      // Context says expand - only if we have logs
+      if (logs.length > 0 || isRunning) {
+        setShowLiveLog(true);
+      }
+    }
+  }, [scoringContext?.state.isMinimized, scoringContext?.state.status, logs.length, isRunning]);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -47,6 +59,10 @@ export function RunScoringButton({ tenantId }: RunScoringButtonProps) {
     setLogs([]);
     setShowLiveLog(true);
     startTimeRef.current = Date.now();
+
+    // Update context
+    scoringContext?.setStatus('running');
+    scoringContext?.setMinimized(false);
 
     try {
       const response = await fetch('/api/portal/score/stream', {
@@ -99,10 +115,16 @@ export function RunScoringButton({ tenantId }: RunScoringButtonProps) {
                   themesExtracted: data.results.themesExtracted,
                   durationMs,
                 });
+                // Update context
+                scoringContext?.setStatus('complete');
+                scoringContext?.setLastSync(new Date());
+                scoringContext?.setReviewsProcessed(data.results.reviewsProcessed);
               }
 
               if (data.type === 'error') {
                 setResult({ success: false, message: data.message });
+                scoringContext?.setStatus('error');
+                scoringContext?.setMessage(data.message);
               }
             } catch {
               // Skip malformed JSON
@@ -111,18 +133,27 @@ export function RunScoringButton({ tenantId }: RunScoringButtonProps) {
         }
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Network error';
       setResult({
         success: false,
-        message: error instanceof Error ? error.message : 'Network error',
+        message: errorMsg,
       });
       setLogs(prev => [...prev, { 
         type: 'error', 
-        message: `❌ ${error instanceof Error ? error.message : 'Network error'}`,
+        message: `❌ ${errorMsg}`,
         timestamp: new Date()
       }]);
+      // Update context
+      scoringContext?.setStatus('error');
+      scoringContext?.setMessage(errorMsg);
     } finally {
       setIsRunning(false);
     }
+  };
+
+  const handleMinimize = () => {
+    setShowLiveLog(false);
+    scoringContext?.setMinimized(true);
   };
 
   const getLogColor = (type: string) => {
@@ -189,14 +220,34 @@ export function RunScoringButton({ tenantId }: RunScoringButtonProps) {
       </div>
 
       {/* Live Log Modal */}
-      <Dialog open={showLiveLog} onOpenChange={(open) => !isRunning && setShowLiveLog(open)}>
+      <Dialog open={showLiveLog} onOpenChange={(open) => {
+        if (!open && isRunning) {
+          // If closing while running, minimize instead
+          handleMinimize();
+        } else if (!open) {
+          setShowLiveLog(false);
+          scoringContext?.setMinimized(false);
+          scoringContext?.setStatus('idle');
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[80vh] p-0 bg-zinc-950 border-zinc-800">
-          <DialogHeader className="px-4 py-3 border-b border-zinc-800">
+          <DialogHeader className="px-4 py-3 border-b border-zinc-800 flex flex-row items-center justify-between">
             <DialogTitle className="text-sm font-mono text-zinc-300 flex items-center gap-2">
               <Terminal className="h-4 w-4" />
               Live Scoring Log
               {isRunning && <Loader2 className="h-3 w-3 animate-spin text-blue-400" />}
             </DialogTitle>
+            {isRunning && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMinimize}
+                className="h-7 w-7 p-0 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                title="Minimize to header"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </Button>
+            )}
           </DialogHeader>
           
           <div className="h-80 overflow-y-auto font-mono text-xs p-4 space-y-1">
