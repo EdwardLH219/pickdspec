@@ -226,7 +226,7 @@ Respond with JSON only.`;
         { role: 'user', content: userPrompt },
       ],
       max_completion_tokens: SUMMARY_CONFIG.maxCompletionTokens,
-      response_format: { type: 'json_object' },
+      // Note: GPT-5 models may use different structured output format
     });
 
     const content = response.choices[0]?.message?.content?.trim() || '{}';
