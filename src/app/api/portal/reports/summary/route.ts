@@ -231,12 +231,20 @@ Respond with JSON only.`;
 
     const content = response.choices[0]?.message?.content?.trim() || '{}';
     
+    console.log('[Summary Generation] Raw response content:', content.substring(0, 500));
+    console.log('[Summary Generation] Response usage:', response.usage);
+    console.log('[Summary Generation] Finish reason:', response.choices[0]?.finish_reason);
+    
     try {
       const parsed = JSON.parse(content) as { 
         summary?: string; 
         themeScores?: Record<string, number>;
         goodFor?: string[];
       };
+      
+      console.log('[Summary Generation] Parsed summary length:', parsed.summary?.length || 0);
+      console.log('[Summary Generation] Parsed themeScores:', Object.keys(parsed.themeScores || {}));
+      
       return {
         summary: parsed.summary || 'Unable to generate summary.',
         themeScores: parsed.themeScores || {},
@@ -246,8 +254,10 @@ Respond with JSON only.`;
           total: response.usage?.total_tokens || 0,
         },
       };
-    } catch {
+    } catch (parseError) {
       // If JSON parsing fails, try to extract the summary from the content
+      console.error('[Summary Generation] JSON parse error:', parseError);
+      console.log('[Summary Generation] Raw content that failed to parse:', content);
       return {
         summary: content,
         themeScores: {},
@@ -259,7 +269,7 @@ Respond with JSON only.`;
       };
     }
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('[Summary Generation] OpenAI API error:', error);
     return { 
       summary: 'Failed to generate summary due to an API error.',
       themeScores: {},
