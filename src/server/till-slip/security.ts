@@ -234,7 +234,7 @@ export async function logTillSlipAudit(entry: TillSlipAuditEntry): Promise<strin
   try {
     // Get actor details if not provided
     let actorEmail = entry.actorEmail;
-    let actorRole = 'MEMBER';
+    let actorRole: string = 'STAFF';
     
     if (!actorEmail) {
       const user = await db.user.findUnique({
@@ -242,7 +242,7 @@ export async function logTillSlipAudit(entry: TillSlipAuditEntry): Promise<strin
         select: { email: true, role: true },
       });
       actorEmail = user?.email || 'unknown';
-      actorRole = user?.role || 'MEMBER';
+      actorRole = user?.role || 'STAFF';
     }
 
     // Create audit log entry
@@ -250,7 +250,7 @@ export async function logTillSlipAudit(entry: TillSlipAuditEntry): Promise<strin
       data: {
         actorId: entry.actorId,
         actorEmail,
-        actorRole: actorRole as 'PICKD_ADMIN' | 'USER',
+        actorRole: actorRole as 'PICKD_ADMIN' | 'PICKD_SUPPORT' | 'OWNER' | 'MANAGER' | 'STAFF',
         action: mapEventToAction(entry.event),
         resourceType: entry.resourceType || 'TillSlipSettings',
         resourceId: entry.resourceId,
