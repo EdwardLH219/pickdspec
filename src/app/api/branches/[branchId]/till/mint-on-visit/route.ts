@@ -263,7 +263,7 @@ export async function POST(
     const signature = generateUrlSignature(branchId, receiptRef, timestamp);
 
     // Build the URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.pickd.co';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://picktenterprise.vercel.app';
     const url = new URL(`/api/branches/${branchId}/till/mint-on-visit`, baseUrl);
     url.searchParams.set('ref', receiptRef);
     url.searchParams.set('t', timestamp.toString());

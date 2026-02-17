@@ -95,8 +95,10 @@ const TOKEN_BYTE_LENGTH = 18; // Results in 24-char base64url string
 /** Default token expiry if not configured */
 const DEFAULT_EXPIRY_DAYS = 7;
 
-/** Base URL for feedback pages */
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.pickd.co';
+/** Get base URL for feedback pages (read at call time, not module load) */
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://picktenterprise.vercel.app';
+}
 
 // ============================================================
 // TOKEN GENERATION
@@ -147,7 +149,7 @@ export function getReceiptLastFour(receiptRef: string): string {
  * Build the feedback URL for a token
  */
 export function buildFeedbackUrl(token: string, utmSource?: string): string {
-  const url = new URL(`/r/${token}`, BASE_URL);
+  const url = new URL(`/r/${token}`, getBaseUrl());
   if (utmSource) {
     url.searchParams.set('utm_source', utmSource);
   }

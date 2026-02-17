@@ -183,7 +183,7 @@ export default function TillReviewsPage({
   // Generate QR preview when settings are active
   useEffect(() => {
     if (shortCode && isActive) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.pickd.co";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://picktenterprise.vercel.app";
       setQrPreviewUrl(`${baseUrl}/r/${shortCode}`);
     }
   }, [shortCode, isActive]);

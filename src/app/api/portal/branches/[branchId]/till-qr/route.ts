@@ -21,7 +21,6 @@ import QRCode from 'qrcode';
 // CONSTANTS
 // ============================================================
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.pickd.co';
 const MIN_SIZE = 100;
 const MAX_SIZE = 1000;
 const DEFAULT_SIZE = 300;
@@ -92,7 +91,11 @@ export async function GET(
 
     // Build the feedback URL using the short code
     // This URL redirects to the feedback form
-    const feedbackUrl = `${BASE_URL}/r/${settings.shortCode}`;
+    // Read env var at request time, not module load time
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://picktenterprise.vercel.app';
+    const feedbackUrl = `${baseUrl}/r/${settings.shortCode}`;
+    
+    console.log('[QR Generation] Using base URL:', baseUrl, 'Full URL:', feedbackUrl);
 
     // Build filename
     const safeSlug = tenant?.slug?.replace(/[^a-zA-Z0-9-]/g, '') || branchId;
@@ -168,7 +171,8 @@ export async function POST(
     }
 
     // Generate a preview QR code with a sample URL
-    const sampleUrl = `${BASE_URL}/r/sample-preview`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://picktenterprise.vercel.app';
+    const sampleUrl = `${baseUrl}/r/sample-preview`;
 
     const qrDataUrl = await QRCode.toDataURL(sampleUrl, {
       ...QR_OPTIONS,
