@@ -299,14 +299,47 @@ export function calculateThemeSentiment(weightedImpacts: number[]): {
 /**
  * B.10: Convert theme sentiment to 0-10 scale
  * 
- * Formula: Score_0_10 = 5 × (S_theme + 1)
+ * Original formula: Score_0_10 = 5 × (S_theme + 1)
+ * 
+ * Enhanced formula adds negative volume adjustment to bring scores
+ * closer to human/AI perception. The adjustment penalizes themes
+ * that have significant negative mention counts, even if the weighted
+ * average is positive.
  * 
  * @param themeSentiment - S_theme in range [-1, +1]
+ * @param negativeRatio - Optional: negativeCount / mentionCount (0-1)
+ * @param adjustmentStrength - How much to weight the negative volume penalty (0-1, default 0.3)
  * @returns Score in range [0, 10]
  */
-export function calculateThemeScore010(themeSentiment: number): number {
-  const score = 5 * (themeSentiment + 1);
-  return Math.max(0, Math.min(10, score)); // Ensure bounds
+export function calculateThemeScore010(
+  themeSentiment: number,
+  negativeRatio?: number,
+  adjustmentStrength: number = 0.3
+): number {
+  // Base score from original formula
+  const baseScore = 5 * (themeSentiment + 1);
+  
+  // If no negative ratio provided, use original formula
+  if (negativeRatio === undefined || negativeRatio === 0) {
+    return Math.max(0, Math.min(10, baseScore));
+  }
+  
+  // Apply negative volume adjustment
+  // This pulls the score down when there are significant negative mentions
+  // The adjustment is stronger when:
+  // - negativeRatio is high (many complaints relative to total)
+  // - adjustmentStrength is high (tunable parameter)
+  //
+  // Formula: adjustment = negativeRatio² × adjustmentStrength × (baseScore - 5)
+  // - Only affects scores above 5 (penalizes inflated positive scores)
+  // - Quadratic ratio makes it more sensitive to higher negative ratios
+  // - Caps at bringing score to 5 (neutral), never below what sentiment suggests
+  
+  const scoreAboveNeutral = Math.max(0, baseScore - 5);
+  const penalty = negativeRatio * negativeRatio * adjustmentStrength * scoreAboveNeutral;
+  const adjustedScore = baseScore - penalty;
+  
+  return Math.max(0, Math.min(10, adjustedScore));
 }
 
 /**
@@ -332,8 +365,14 @@ export function calculateSeverity(themeSentiment: number, mentionCount: number):
 
 /**
  * Aggregate theme scores from review scores
+ * 
+ * @param input - Theme aggregation input with review scores
+ * @param negativeAdjustmentStrength - How much to weight negative volume (0-1, default 0.3)
  */
-export function aggregateThemeScores(input: ThemeAggregationInput): ThemeAggregationResult {
+export function aggregateThemeScores(
+  input: ThemeAggregationInput,
+  negativeAdjustmentStrength: number = 0.3
+): ThemeAggregationResult {
   const { themeId, reviewScores } = input;
   
   // Count sentiments
@@ -342,12 +381,15 @@ export function aggregateThemeScores(input: ThemeAggregationInput): ThemeAggrega
   const neutralCount = reviewScores.filter(r => r.sentiment === 'neutral').length;
   const negativeCount = reviewScores.filter(r => r.sentiment === 'negative').length;
   
+  // Calculate negative ratio for volume adjustment
+  const negativeRatio = mentionCount > 0 ? negativeCount / mentionCount : 0;
+  
   // Calculate theme sentiment
   const weightedImpacts = reviewScores.map(r => r.weightedImpact);
   const { sentiment: themeSentiment, sumWr, sumAbsWr } = calculateThemeSentiment(weightedImpacts);
   
-  // Calculate derived scores
-  const themeScore010 = calculateThemeScore010(themeSentiment);
+  // Calculate derived scores with negative volume adjustment
+  const themeScore010 = calculateThemeScore010(themeSentiment, negativeRatio, negativeAdjustmentStrength);
   const severity = calculateSeverity(themeSentiment, mentionCount);
   
   return {

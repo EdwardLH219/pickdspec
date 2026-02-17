@@ -356,24 +356,38 @@ export async function POST(request: NextRequest) {
 
         // Calculate theme scores and persist them
         const themeScores: Array<{ name: string; sentiment: number; score010: number; mentions: number }> = [];
+        
+        // Negative adjustment strength (0.3 = moderate adjustment to bring scores closer to AI perception)
+        const NEGATIVE_ADJUSTMENT_STRENGTH = 0.3;
 
         for (const [themeId, data] of themeGroups) {
           const sumWr = data.impacts.reduce((a, b) => a + b, 0);
           const sumAbsWr = data.impacts.reduce((a, b) => a + Math.abs(b), 0);
           const themeSentiment = sumAbsWr > 0 ? sumWr / sumAbsWr : 0;
-          const score010 = 5 * (themeSentiment + 1);
+          
+          // Count sentiment types from the impacts
+          const positiveCount = data.impacts.filter(i => i > 0).length;
+          const negativeCount = data.impacts.filter(i => i < 0).length;
+          const neutralCount = data.impacts.filter(i => i === 0).length;
+          const mentionCount = data.impacts.length;
+          
+          // Calculate negative ratio for volume adjustment
+          const negativeRatio = mentionCount > 0 ? negativeCount / mentionCount : 0;
+          
+          // Apply negative volume adjustment to bring scores closer to AI/human perception
+          // Base score: 5 * (themeSentiment + 1)
+          // Adjustment penalizes themes with significant negative mention counts
+          const baseScore = 5 * (themeSentiment + 1);
+          const scoreAboveNeutral = Math.max(0, baseScore - 5);
+          const penalty = negativeRatio * negativeRatio * NEGATIVE_ADJUSTMENT_STRENGTH * scoreAboveNeutral;
+          const score010 = Math.max(0, Math.min(10, baseScore - penalty));
 
           themeScores.push({
             name: data.name,
             sentiment: themeSentiment,
             score010,
-            mentions: data.impacts.length,
+            mentions: mentionCount,
           });
-
-          // Count sentiment types from the impacts
-          const positiveCount = data.impacts.filter(i => i > 0).length;
-          const negativeCount = data.impacts.filter(i => i < 0).length;
-          const neutralCount = data.impacts.filter(i => i === 0).length;
           
           // Period for this run (use review date range)
           const now = new Date();

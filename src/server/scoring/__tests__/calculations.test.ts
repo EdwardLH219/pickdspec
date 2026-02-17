@@ -508,7 +508,7 @@ describe('calculateThemeScore010', () => {
     });
   });
   
-  describe('Formula Correctness', () => {
+  describe('Formula Correctness (without negative adjustment)', () => {
     it('should return 0 for sentiment -1', () => {
       expect(calculateThemeScore010(-1)).toBe(0);
     });
@@ -521,9 +521,56 @@ describe('calculateThemeScore010', () => {
       expect(calculateThemeScore010(1)).toBe(10);
     });
     
-    it('should scale linearly', () => {
+    it('should scale linearly without adjustment', () => {
       expect(calculateThemeScore010(-0.5)).toBe(2.5);
       expect(calculateThemeScore010(0.5)).toBe(7.5);
+    });
+  });
+  
+  describe('Negative Volume Adjustment', () => {
+    it('should reduce score when negativeRatio is high', () => {
+      // Without adjustment: sentiment 0.5 -> score 7.5
+      const baseScore = calculateThemeScore010(0.5);
+      expect(baseScore).toBe(7.5);
+      
+      // With 30% negative ratio and default 0.3 strength:
+      // penalty = 0.3² × 0.3 × (7.5 - 5) = 0.09 × 0.3 × 2.5 = 0.0675
+      const adjustedScore = calculateThemeScore010(0.5, 0.3);
+      expect(adjustedScore).toBeLessThan(baseScore);
+      expect(adjustedScore).toBeCloseTo(7.43, 1);
+    });
+    
+    it('should not adjust scores at or below 5', () => {
+      // Scores at 5 or below should not be penalized further
+      const score1 = calculateThemeScore010(-0.5, 0.5); // Base: 2.5
+      expect(score1).toBe(2.5);
+      
+      const score2 = calculateThemeScore010(0, 0.5); // Base: 5.0
+      expect(score2).toBe(5);
+    });
+    
+    it('should have stronger effect with higher negative ratio', () => {
+      const score10 = calculateThemeScore010(0.8, 0.1); // 10% negative
+      const score30 = calculateThemeScore010(0.8, 0.3); // 30% negative
+      const score50 = calculateThemeScore010(0.8, 0.5); // 50% negative
+      
+      expect(score30).toBeLessThan(score10);
+      expect(score50).toBeLessThan(score30);
+    });
+    
+    it('should be configurable via adjustmentStrength', () => {
+      // Same sentiment and ratio, different strength
+      const lowStrength = calculateThemeScore010(0.6, 0.3, 0.1);
+      const highStrength = calculateThemeScore010(0.6, 0.3, 0.5);
+      
+      expect(highStrength).toBeLessThan(lowStrength);
+    });
+    
+    it('should have zero effect when negativeRatio is 0', () => {
+      const withoutRatio = calculateThemeScore010(0.7);
+      const withZeroRatio = calculateThemeScore010(0.7, 0);
+      
+      expect(withoutRatio).toBe(withZeroRatio);
     });
   });
 });
