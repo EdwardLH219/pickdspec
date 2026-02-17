@@ -614,6 +614,123 @@ export function TopIssuesChart({ data }: TopIssuesChartProps) {
 }
 
 // ============================================================
+// WORST REVIEWS CARD
+// ============================================================
+
+interface WorstReview {
+  id: string;
+  content: string;
+  rating: number | null;
+  reviewDate: Date | string | null;
+  authorName: string;
+  sourceType: string | null;
+  themes: string[];
+}
+
+interface WorstReviewsCardProps {
+  reviews: WorstReview[];
+}
+
+export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
+  const formatDate = (date: Date | string | null) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const getRatingStars = (rating: number | null) => {
+    if (rating === null) return null;
+    return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+  };
+
+  const getSourceIcon = (source: string | null) => {
+    switch (source?.toLowerCase()) {
+      case 'google':
+        return '🔍';
+      case 'tripadvisor':
+        return '🦉';
+      case 'facebook':
+        return '📘';
+      case 'till_slip':
+        return '🧾';
+      default:
+        return '💬';
+    }
+  };
+
+  if (!reviews || reviews.length === 0) {
+    return (
+      <Card className="h-[360px] flex flex-col">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span className="inline-block w-3 h-3 rounded-full bg-green-500" />
+            No Negative Reviews
+          </CardTitle>
+          <CardDescription>Great news! No recent low-rated reviews.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground text-sm">All reviews are positive!</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="h-[360px] flex flex-col">
+      <CardHeader className="pb-2 shrink-0">
+        <CardTitle className="flex items-center gap-2 text-red-600">
+          <span className="inline-block w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+          Recent Negative Reviews
+        </CardTitle>
+        <CardDescription>Reviews needing attention (3 stars or below)</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 overflow-y-auto space-y-2 pt-2 pr-2">
+        {reviews.map((review) => (
+          <div
+            key={review.id}
+            className="border border-gray-100 rounded-lg p-2.5 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-xs" title={review.sourceType || 'Unknown'}>
+                  {getSourceIcon(review.sourceType)}
+                </span>
+                <span className="font-medium text-xs text-gray-900 truncate">
+                  {review.authorName}
+                </span>
+                {review.rating !== null && (
+                  <span className="text-yellow-500 text-[10px] font-medium">
+                    {getRatingStars(review.rating)}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-gray-400 shrink-0">
+                {formatDate(review.reviewDate)}
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+              {review.content}
+            </p>
+            {review.themes.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {review.themes.map((theme) => (
+                  <span
+                    key={theme}
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700"
+                  >
+                    {theme}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================
 // HEALTH SCORE GAUGE
 // ============================================================
 

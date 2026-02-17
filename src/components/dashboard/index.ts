@@ -16,6 +16,7 @@ export {
   RatingDistributionChart,
   ThemeRadarChart,
   TopIssuesChart,
+  WorstReviewsCard,
   HealthGauge,
   SourceDistributionChart,
   WeeklyComparisonChart,

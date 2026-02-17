@@ -8,7 +8,7 @@ import {
   SentimentPieChart,
   RatingDistributionChart,
   ThemeRadarChart,
-  TopIssuesChart,
+  WorstReviewsCard,
   HealthGauge,
   SourceDistributionChart,
   WeeklyComparisonChart,
@@ -81,11 +81,14 @@ interface DashboardData {
     severity: number;
     radarScore: number;
   }>;
-  topIssues?: Array<{
-    themeName: string;
-    severity: number;
-    score010: number;
-    mentions: number;
+  worstReviews?: Array<{
+    id: string;
+    content: string;
+    rating: number | null;
+    reviewDate: string | null;
+    authorName: string;
+    sourceType: string | null;
+    themes: string[];
   }>;
   topPerformers?: Array<{
     themeName: string;
@@ -502,9 +505,9 @@ export default function DashboardPage() {
                 </Card>
               )}
             </div>
-            {/* Top Issues */}
+            {/* Worst Recent Reviews */}
             <div className="lg:col-span-1">
-              <TopIssuesChart data={data.topIssues ?? []} />
+              <WorstReviewsCard reviews={data.worstReviews ?? []} />
             </div>
           </div>
 

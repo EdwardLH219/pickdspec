@@ -56,6 +56,9 @@ import {
   Gift,
   Percent,
   BarChart3,
+  LayoutList,
+  Kanban,
+  GripVertical,
 } from "lucide-react";
 import {
   LineChart,
@@ -71,6 +74,7 @@ import {
 } from "recharts";
 
 type StatusFilter = "all" | "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+type ViewMode = "list" | "kanban";
 
 interface ValueRange {
   min: number;
@@ -183,6 +187,9 @@ function TasksContent() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // View mode
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   
   // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -642,6 +649,26 @@ function TasksContent() {
           </SelectContent>
         </Select>
 
+        {/* View Toggle */}
+        <div className="flex items-center border rounded-md">
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="sm"
+            className="rounded-r-none"
+            onClick={() => setViewMode("list")}
+          >
+            <LayoutList className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "kanban" ? "secondary" : "ghost"}
+            size="sm"
+            className="rounded-l-none"
+            onClick={() => setViewMode("kanban")}
+          >
+            <Kanban className="h-4 w-4" />
+          </Button>
+        </div>
+
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             <X className="h-4 w-4 mr-1" />
@@ -656,7 +683,7 @@ function TasksContent() {
         </div>
       </div>
 
-      {/* Tasks Table */}
+      {/* Tasks View */}
       {isLoading ? (
         <Card>
           <CardContent className="p-6">
@@ -680,7 +707,228 @@ function TasksContent() {
             </p>
           </CardContent>
         </Card>
+      ) : viewMode === "kanban" ? (
+        /* Kanban Board View */
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Not Started Column */}
+          <div 
+            className="bg-gray-50 rounded-lg p-3 min-h-[500px]"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const taskId = e.dataTransfer.getData('taskId');
+              if (taskId) updateTaskStatus(taskId, 'PENDING');
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-200">
+              <div className="w-2 h-2 rounded-full bg-gray-400" />
+              <h3 className="font-semibold text-sm text-gray-700">Not Started</h3>
+              <Badge variant="secondary" className="ml-auto text-xs">
+                {tasks.filter(t => t.status === 'PENDING').length}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {tasks.filter(t => t.status === 'PENDING').map((task) => (
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
+                  className={`bg-white rounded-lg p-3 shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${task.isOverdue ? 'border-l-2 border-l-red-500' : ''}`}
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
+                    <p className="font-medium text-sm line-clamp-2">{task.title}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-2 ml-6">
+                    {task.themeName && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-700">
+                        {task.themeName}
+                      </Badge>
+                    )}
+                    {getPriorityBadge(task.priority)}
+                  </div>
+                  <div className="flex items-center justify-between ml-6">
+                    {task.assignee ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary">
+                          {task.assignee.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Unassigned</span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setDetailOpen(true);
+                        setImpactSourceFilter('all');
+                      }}
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {task.dueDate && (
+                    <div className={`text-xs mt-2 ml-6 ${task.isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                      Due: {new Date(task.dueDate).toLocaleDateString()}
+                      {task.isOverdue && ' (Overdue)'}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* In Progress Column */}
+          <div 
+            className="bg-blue-50/50 rounded-lg p-3 min-h-[500px]"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const taskId = e.dataTransfer.getData('taskId');
+              if (taskId) updateTaskStatus(taskId, 'IN_PROGRESS');
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-blue-200">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <h3 className="font-semibold text-sm text-blue-700">In Progress</h3>
+              <Badge variant="secondary" className="ml-auto text-xs bg-blue-100 text-blue-700">
+                {tasks.filter(t => t.status === 'IN_PROGRESS').length}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {tasks.filter(t => t.status === 'IN_PROGRESS').map((task) => (
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
+                  className={`bg-white rounded-lg p-3 shadow-sm border border-blue-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${task.isOverdue ? 'border-l-2 border-l-red-500' : ''}`}
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
+                    <p className="font-medium text-sm line-clamp-2">{task.title}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-2 ml-6">
+                    {task.themeName && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-700">
+                        {task.themeName}
+                      </Badge>
+                    )}
+                    {getPriorityBadge(task.priority)}
+                  </div>
+                  <div className="flex items-center justify-between ml-6">
+                    {task.assignee ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary">
+                          {task.assignee.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Unassigned</span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setDetailOpen(true);
+                        setImpactSourceFilter('all');
+                      }}
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {task.dueDate && (
+                    <div className={`text-xs mt-2 ml-6 ${task.isOverdue ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                      Due: {new Date(task.dueDate).toLocaleDateString()}
+                      {task.isOverdue && ' (Overdue)'}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Done Column */}
+          <div 
+            className="bg-green-50/50 rounded-lg p-3 min-h-[500px]"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const taskId = e.dataTransfer.getData('taskId');
+              if (taskId) updateTaskStatus(taskId, 'COMPLETED');
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-green-200">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <h3 className="font-semibold text-sm text-green-700">Done</h3>
+              <Badge variant="secondary" className="ml-auto text-xs bg-green-100 text-green-700">
+                {tasks.filter(t => t.status === 'COMPLETED').length}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {tasks.filter(t => t.status === 'COMPLETED').map((task) => (
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('taskId', task.id)}
+                  className="bg-white rounded-lg p-3 shadow-sm border border-green-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
+                    <p className="font-medium text-sm line-clamp-2">{task.title}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-2 ml-6">
+                    {task.themeName && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-700">
+                        {task.themeName}
+                      </Badge>
+                    )}
+                    {getPriorityBadge(task.priority)}
+                  </div>
+                  <div className="flex items-center justify-between ml-6">
+                    {task.assignee ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium text-primary">
+                          {task.assignee.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Unassigned</span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setDetailOpen(true);
+                        setImpactSourceFilter('all');
+                        if (task.themeId) fetchTimeline(task.id);
+                        fetchTillMetrics();
+                      }}
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {task.completedAt && (
+                    <div className="text-xs mt-2 ml-6 text-green-600">
+                      Completed: {new Date(task.completedAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       ) : (
+        /* List View */
         <Card>
           <Table>
             <TableHeader>
@@ -704,7 +952,7 @@ function TasksContent() {
                   </TableCell>
                   <TableCell>
                     {task.themeName ? (
-                      <Badge variant="outline">{task.themeName}</Badge>
+                      <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-700">{task.themeName}</Badge>
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}

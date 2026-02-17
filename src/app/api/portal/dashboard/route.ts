@@ -200,11 +200,50 @@ export async function GET(request: NextRequest) {
       radarScore: Math.round(ts.themeScore010 * 10),
     }));
 
-    // Top issues (highest severity, negative themes)
-    const topIssues = formattedThemeScores
-      .filter(t => t.score010 < 6)
-      .sort((a, b) => b.severity - a.severity)
-      .slice(0, 5);
+    // Get 5 worst recent reviews (lowest rating, most recent first)
+    const worstReviews = await db.review.findMany({
+      where: {
+        tenantId,
+        rating: { lte: 3 }, // 3 stars or below
+      },
+      orderBy: [
+        { rating: 'asc' },
+        { reviewDate: 'desc' },
+      ],
+      take: 5,
+      select: {
+        id: true,
+        content: true,
+        rating: true,
+        reviewDate: true,
+        authorName: true,
+        connector: {
+          select: { sourceType: true },
+        },
+        reviewThemes: {
+          select: {
+            theme: { select: { name: true } },
+            sentiment: true,
+          },
+        },
+      },
+    });
+
+    // Format worst reviews for frontend
+    const formattedWorstReviews = worstReviews.map(review => ({
+      id: review.id,
+      content: review.content.length > 200 
+        ? review.content.substring(0, 200) + '...' 
+        : review.content,
+      rating: review.rating,
+      reviewDate: review.reviewDate,
+      authorName: review.authorName || 'Anonymous',
+      sourceType: review.connector?.sourceType || null,
+      themes: review.reviewThemes
+        .filter(rt => rt.sentiment === 'NEGATIVE')
+        .map(rt => rt.theme.name)
+        .slice(0, 3),
+    }));
 
     // Best performing themes
     const topPerformers = [...formattedThemeScores]
@@ -234,7 +273,7 @@ export async function GET(request: NextRequest) {
       ratingDistribution,
       sourceDistribution,
       themeScores: formattedThemeScores,
-      topIssues,
+      worstReviews: formattedWorstReviews,
       topPerformers,
       // Time series data
       trends: {

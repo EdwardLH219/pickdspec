@@ -478,7 +478,12 @@ export default function RecommendationsPage() {
                     <div>
                       <CardTitle className="text-lg">{rec.title}</CardTitle>
                       <CardDescription className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline">{rec.themeName}</Badge>
+                        <Badge 
+                          variant="outline" 
+                          className="bg-blue-50 border-blue-200 text-blue-700 shadow-sm font-medium"
+                        >
+                          {rec.themeName}
+                        </Badge>
                         <span className={`font-medium ${getSeverityColor(rec.severity)}`}>
                           Severity: {rec.severity.toFixed(2)}
                         </span>
