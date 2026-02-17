@@ -2,7 +2,7 @@
  * Customer Summary API
  * 
  * Generates AI-powered summaries of customer reviews for different time periods.
- * Uses GPT-5.2-mini with strict guidelines to ensure accuracy and grounding in actual reviews.
+ * Uses GPT-5-mini with strict guidelines to ensure accuracy and grounding in actual reviews.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +17,7 @@ import { CustomerSummaryPeriod } from '@prisma/client';
 // ============================================================
 
 const SUMMARY_CONFIG = {
-  model: 'gpt-5.2-mini',
+  model: 'gpt-5-mini',
   maxTokens: 1200,
   temperature: 0.3, // Lower temperature for more factual output
 };
