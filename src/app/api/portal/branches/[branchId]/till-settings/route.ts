@@ -121,6 +121,16 @@ export async function GET(
     });
     const membershipRole = membership?.role || null;
     const canEdit = canEditSettings(membershipRole, session.user.role);
+    
+    // Debug logging for permissions
+    console.log('[Till Settings] Permission check:', {
+      userId: session.user.id,
+      organizationId: tenant.organizationId,
+      membershipRole,
+      platformRole: session.user.role,
+      canEdit,
+      membershipFound: !!membership,
+    });
 
     // Build Google Review URL suggestion if not set
     let suggestedGoogleReviewUrl: string | null = null;
@@ -158,6 +168,13 @@ export async function GET(
       canEdit,
       expiryPresets: EXPIRY_PRESETS,
       suggestedGoogleReviewUrl,
+      // Debug info (remove in production)
+      _debug: {
+        membershipRole,
+        platformRole: session.user.role,
+        membershipFound: !!membership,
+        organizationId: tenant.organizationId,
+      },
     });
   } catch (error) {
     console.error('Error fetching till settings:', {
