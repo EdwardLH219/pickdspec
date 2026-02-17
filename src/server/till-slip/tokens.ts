@@ -377,6 +377,7 @@ export async function verifyReceiptToken(token: string): Promise<VerifyTokenResu
       requireReceiptNumber: receipt.settings.requireReceiptNumber,
       redirectToGoogleReview: receipt.settings.redirectToGoogleReview,
       googleReviewUrl: receipt.settings.googleReviewUrl,
+      tokenExpiryDays: receipt.settings.tokenExpiryDays,
       themeOptions,
     },
     tenantName: receipt.tenant.name,
