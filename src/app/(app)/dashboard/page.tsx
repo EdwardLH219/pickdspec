@@ -144,7 +144,7 @@ interface ComparisonData {
 }
 
 export default function DashboardPage() {
-  const { selectedTenantId, selectedTenant, isLoading: branchLoading } = useBranch();
+  const { selectedTenantId, selectedTenant, isLoading: branchLoading, dateRange } = useBranch();
   const [data, setData] = useState<DashboardData | null>(null);
   const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
@@ -193,9 +193,28 @@ export default function DashboardPage() {
       setError(null);
 
       try {
+        // Calculate date range for filtering based on current dateRange value
+        const end = new Date();
+        const start = new Date();
+        switch (dateRange) {
+          case "30d":
+            start.setDate(end.getDate() - 30);
+            break;
+          case "90d":
+            start.setDate(end.getDate() - 90);
+            break;
+          case "365d":
+            start.setFullYear(end.getFullYear() - 1);
+            break;
+          default:
+            start.setDate(end.getDate() - 30);
+        }
+        const startDate = start.toISOString();
+        const endDate = end.toISOString();
+        
         // Fetch dashboard and tasks in parallel
         const [dashboardRes, tasksRes] = await Promise.all([
-          fetch(`/api/portal/dashboard?tenantId=${selectedTenantId}`),
+          fetch(`/api/portal/dashboard?tenantId=${selectedTenantId}&startDate=${startDate}&endDate=${endDate}`),
           fetch(`/api/portal/tasks?tenantId=${selectedTenantId}&status=COMPLETED`),
         ]);
         
@@ -226,7 +245,7 @@ export default function DashboardPage() {
     }
 
     fetchDashboard();
-  }, [selectedTenantId]);
+  }, [selectedTenantId, dateRange]);
 
   // Calculate metrics
   const negativeRate = data?.sentimentDistribution

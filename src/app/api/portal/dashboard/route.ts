@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     if (!tenantId) {
       return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
@@ -34,7 +36,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Get the latest successful score run
+    // Parse date range from params, or default to last 30 days
+    const endDate = endDateParam ? new Date(endDateParam) : new Date();
+    const startDate = startDateParam ? new Date(startDateParam) : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Get the latest successful score run that overlaps with the date range
     const latestRun = await db.scoreRun.findFirst({
       where: {
         tenantId,
@@ -61,6 +67,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Use the provided date range for filtering reviews
+    const filterStartDate = startDate;
+    const filterEndDate = endDate;
+
     // Get KPIs from theme scores
     const themeScores = await db.themeScore.findMany({
       where: { scoreRunId: latestRun.id },
@@ -80,27 +90,35 @@ export async function GET(request: NextRequest) {
       ? themeScores.reduce((sum, ts) => sum + ts.severity, 0) / themeScores.length
       : 0;
 
-    // Get review count and average rating from reviews
+    // Get review count and average rating from reviews within the date range
     const reviewStats = await db.review.aggregate({
       where: {
         tenantId,
         reviewDate: {
-          gte: latestRun.periodStart ?? undefined,
-          lte: latestRun.periodEnd ?? undefined,
+          gte: filterStartDate,
+          lte: filterEndDate,
         },
       },
       _count: { id: true },
       _avg: { rating: true },
     });
 
-    // Get sentiment distribution from review scores
+    // Get sentiment distribution from review scores within the date range
     const reviewScores = await db.reviewScore.findMany({
-      where: { scoreRunId: latestRun.id },
+      where: { 
+        scoreRunId: latestRun.id,
+        review: {
+          reviewDate: {
+            gte: filterStartDate,
+            lte: filterEndDate,
+          },
+        },
+      },
       select: { 
         baseSentiment: true, 
         weightedImpact: true,
         review: {
-          select: { rating: true }
+          select: { rating: true, reviewDate: true }
         }
       },
     });
@@ -118,14 +136,14 @@ export async function GET(request: NextRequest) {
       label: `${star} Star${star !== 1 ? 's' : ''}`,
     }));
 
-    // Get source distribution
+    // Get source distribution within the date range
     const sourceStats = await db.review.groupBy({
       by: ['connectorId'],
       where: {
         tenantId,
         reviewDate: {
-          gte: latestRun.periodStart ?? undefined,
-          lte: latestRun.periodEnd ?? undefined,
+          gte: filterStartDate,
+          lte: filterEndDate,
         },
       },
       _count: { id: true },
@@ -156,14 +174,14 @@ export async function GET(request: NextRequest) {
     });
 
     // ===== TIME SERIES DATA =====
-    // Get reviews with dates for trend analysis (last 90 days)
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    
+    // Get reviews with dates for trend analysis within the selected date range
     const reviewsWithScores = await db.review.findMany({
       where: {
         tenantId,
-        reviewDate: { gte: ninetyDaysAgo },
+        reviewDate: { 
+          gte: filterStartDate,
+          lte: filterEndDate,
+        },
       },
       select: {
         id: true,
@@ -181,10 +199,8 @@ export async function GET(request: NextRequest) {
     // Group by week for trend chart
     const weeklyTrends = getWeeklyTrends(reviewsWithScores);
     
-    // Daily review volume for last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dailyVolume = getDailyVolume(reviewsWithScores.filter(r => r.reviewDate >= thirtyDaysAgo));
+    // Daily review volume for the date range
+    const dailyVolume = getDailyVolume(reviewsWithScores);
 
     // Format theme scores for frontend with radar chart data
     const formattedThemeScores = themeScores.map(ts => ({
@@ -200,11 +216,15 @@ export async function GET(request: NextRequest) {
       radarScore: Math.round(ts.themeScore010 * 10),
     }));
 
-    // Get 5 worst recent reviews (lowest rating, most recent first)
+    // Get 5 worst recent reviews within the date range (lowest rating, most recent first)
     const worstReviews = await db.review.findMany({
       where: {
         tenantId,
         rating: { lte: 3 }, // 3 stars or below
+        reviewDate: {
+          gte: filterStartDate,
+          lte: filterEndDate,
+        },
       },
       orderBy: [
         { rating: 'asc' },
@@ -252,6 +272,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       hasData: true,
+      dateFilter: {
+        startDate: filterStartDate.toISOString(),
+        endDate: filterEndDate.toISOString(),
+      },
       scoreRun: {
         id: latestRun.id,
         periodStart: latestRun.periodStart,

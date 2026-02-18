@@ -6,6 +6,7 @@
  * Rich visualizations for the restaurant owner dashboard using Recharts.
  */
 
+import { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -30,6 +31,15 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
 
 // Color palette
 const COLORS = {
@@ -632,6 +642,8 @@ interface WorstReviewsCardProps {
 }
 
 export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
+  const [selectedReview, setSelectedReview] = useState<WorstReview | null>(null);
+
   const formatDate = (date: Date | string | null) => {
     if (!date) return '';
     const d = new Date(date);
@@ -658,6 +670,21 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
     }
   };
 
+  const getSourceName = (source: string | null) => {
+    switch (source?.toLowerCase()) {
+      case 'google':
+        return 'Google';
+      case 'tripadvisor':
+        return 'TripAdvisor';
+      case 'facebook':
+        return 'Facebook';
+      case 'till_slip':
+        return 'Till Slip Feedback';
+      default:
+        return 'Unknown Source';
+    }
+  };
+
   if (!reviews || reviews.length === 0) {
     return (
       <Card className="h-[360px] flex flex-col">
@@ -676,57 +703,112 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
   }
 
   return (
-    <Card className="h-[360px] flex flex-col">
-      <CardHeader className="pb-2 shrink-0">
-        <CardTitle className="flex items-center gap-2 text-red-600">
-          <span className="inline-block w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-          Recent Negative Reviews
-        </CardTitle>
-        <CardDescription>Reviews needing attention (3 stars or below)</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-2 pt-2 pr-2">
-        {reviews.map((review) => (
-          <div
-            key={review.id}
-            className="border border-gray-100 rounded-lg p-2.5 bg-gray-50/50 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-xs" title={review.sourceType || 'Unknown'}>
-                  {getSourceIcon(review.sourceType)}
-                </span>
-                <span className="font-medium text-xs text-gray-900 truncate">
-                  {review.authorName}
-                </span>
-                {review.rating !== null && (
-                  <span className="text-yellow-500 text-[10px] font-medium">
-                    {getRatingStars(review.rating)}
+    <>
+      <Card className="h-[360px] flex flex-col">
+        <CardHeader className="pb-2 shrink-0">
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <span className="inline-block w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+            Recent Negative Reviews
+          </CardTitle>
+          <CardDescription>Reviews needing attention (3 stars or below)</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto space-y-2 pt-2 pr-2">
+          {reviews.map((review) => (
+            <div
+              key={review.id}
+              className="border border-gray-100 rounded-lg p-2.5 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-xs" title={review.sourceType || 'Unknown'}>
+                    {getSourceIcon(review.sourceType)}
                   </span>
-                )}
-              </div>
-              <span className="text-[10px] text-gray-400 shrink-0">
-                {formatDate(review.reviewDate)}
-              </span>
-            </div>
-            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
-              {review.content}
-            </p>
-            {review.themes.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {review.themes.map((theme) => (
-                  <span
-                    key={theme}
-                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700"
+                  <span className="font-medium text-xs text-gray-900 truncate">
+                    {review.authorName}
+                  </span>
+                  {review.rating !== null && (
+                    <span className="text-yellow-500 text-[10px] font-medium">
+                      {getRatingStars(review.rating)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] text-gray-400">
+                    {formatDate(review.reviewDate)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                    onClick={() => setSelectedReview(review)}
+                    title="View full review"
                   >
-                    {theme}
-                  </span>
-                ))}
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
+                {review.content}
+              </p>
+              {review.themes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {review.themes.map((theme) => (
+                    <span
+                      key={theme}
+                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700"
+                    >
+                      {theme}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Review Detail Modal */}
+      <Dialog open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-lg">{getSourceIcon(selectedReview?.sourceType ?? null)}</span>
+              Review from {selectedReview?.authorName}
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2">
+              {getSourceName(selectedReview?.sourceType ?? null)} • {formatDate(selectedReview?.reviewDate ?? null)}
+              {selectedReview?.rating !== null && (
+                <span className="text-yellow-500 font-medium">
+                  {getRatingStars(selectedReview?.rating ?? null)}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {selectedReview?.content}
+              </p>
+            </div>
+            {selectedReview?.themes && selectedReview.themes.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-2">Identified Issues</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedReview.themes.map((theme) => (
+                    <span
+                      key={theme}
+                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700"
+                    >
+                      {theme}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        ))}
-      </CardContent>
-    </Card>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
