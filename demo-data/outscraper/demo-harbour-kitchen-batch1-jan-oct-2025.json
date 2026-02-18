@@ -1,0 +1,392 @@
+{
+  "query": "The Harbour Kitchen",
+  "name": "The Harbour Kitchen",
+  "name_for_emails": "theharbourkitchen",
+  "place_id": "ChIJdemo_harbour_001",
+  "google_id": "ChIJdemo_harbour_001",
+  "kgmid": "/g/demo_harbour_001",
+  "full_address": "45 Victoria Wharf, V&A Waterfront, Cape Town, 8001",
+  "borough": null,
+  "street": "45 Victoria Wharf",
+  "postal_code": "8001",
+  "area_service": null,
+  "country_code": "ZA",
+  "country": "South Africa",
+  "city": "Cape Town",
+  "us_state": null,
+  "state": null,
+  "plus_code": null,
+  "latitude": -33.903641,
+  "longitude": 18.420588,
+  "h3": null,
+  "time_zone": "Africa/Johannesburg",
+  "site": "https://www.theharbourkitchen.co.za",
+  "phone": "+27 21 418 5500",
+  "type": "Restaurant",
+  "category": "Seafood restaurant",
+  "subtypes": "Seafood restaurant, Fine dining restaurant",
+  "rating": 4.1,
+  "reviews": 85,
+  "reviews_data": [
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_001",
+      "author_title": "Sarah M",
+      "author_id": "100001",
+      "author_reviews_count": 45,
+      "review_text": "Beautiful location with stunning harbour views. The seafood platter was fresh and delicious. However, we waited 45 minutes for our starters which really put a damper on the experience. The waiter seemed overwhelmed and forgot our drinks order twice.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "2",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 3,
+      "review_timestamp": 1738339200,
+      "review_datetime_utc": "01/31/2025 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_002",
+      "author_title": "Michael T",
+      "author_id": "100002",
+      "author_reviews_count": 28,
+      "review_text": "Food was outstanding - the grilled kingklip was perfectly cooked. But I'm sorry to say the service was terrible. Our waiter was nowhere to be found most of the evening. Took 20 minutes just to get the bill. Such a shame because the food deserves 5 stars.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1739548800,
+      "review_datetime_utc": "02/14/2025 12:00:00",
+      "review_likes": 5
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_003",
+      "author_title": "Emma K",
+      "author_id": "100003",
+      "author_reviews_count": 62,
+      "review_text": "Absolutely loved it! The calamari starter was the best I've had in Cape Town. Our server James was attentive and made great wine recommendations. Will definitely be back!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1740067200,
+      "review_datetime_utc": "02/20/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_004",
+      "author_title": "David L",
+      "author_id": "100004",
+      "author_reviews_count": 15,
+      "review_text": "Waited over an hour for mains. The manager did apologize and comp our desserts, but it really ruined the evening. The restaurant was clearly understaffed for a Saturday night. Food quality itself was good when it finally arrived.",
+      "review_questions": {
+        "Food": "4",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1741276800,
+      "review_datetime_utc": "03/06/2025 12:00:00",
+      "review_likes": 8
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_005",
+      "author_title": "Lisa van der Berg",
+      "author_id": "100005",
+      "author_reviews_count": 92,
+      "review_text": "The prawns were divine! Perfectly cooked with just the right amount of garlic. Location is unbeatable. Service was a bit slow but friendly when they did come around.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1742486400,
+      "review_datetime_utc": "03/20/2025 12:00:00",
+      "review_likes": 1
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_006",
+      "author_title": "John P",
+      "author_id": "100006",
+      "author_reviews_count": 33,
+      "review_text": "Came here for my anniversary. Food was exquisite but the service completely let us down. Waited 30 mins to be seated despite having a booking. Then another 25 mins just to order. The waiter mixed up our orders. Not what you expect from a fine dining establishment.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1743696000,
+      "review_datetime_utc": "04/03/2025 12:00:00",
+      "review_likes": 12
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_007",
+      "author_title": "Amanda S",
+      "author_id": "100007",
+      "author_reviews_count": 54,
+      "review_text": "Fantastic seafood! The oysters were incredibly fresh. Staff were a bit rushed but still managed to be friendly. Would recommend for the food alone.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1744905600,
+      "review_datetime_utc": "04/17/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_008",
+      "author_title": "Robert M",
+      "author_id": "100008",
+      "author_reviews_count": 21,
+      "review_text": "Terrible service experience. Our waitress was rude and dismissive. When we asked about the specials she just said 'it's on the board'. Food was decent but not enough to make up for how we were treated. Won't be returning.",
+      "review_questions": {
+        "Food": "4",
+        "Service": "1",
+        "Atmosphere": "3"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1746115200,
+      "review_datetime_utc": "05/01/2025 12:00:00",
+      "review_likes": 7
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_009",
+      "author_title": "Nicole B",
+      "author_id": "100009",
+      "author_reviews_count": 67,
+      "review_text": "The view alone is worth visiting. Had the seafood pasta - absolutely divine! Service was OK, nothing special but not bad either. Prices are on the higher side but expected for the location.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1747324800,
+      "review_datetime_utc": "05/15/2025 12:00:00",
+      "review_likes": 1
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_010",
+      "author_title": "Peter H",
+      "author_id": "100010",
+      "author_reviews_count": 38,
+      "review_text": "We had to wait 50 minutes for our food. The kitchen seems completely disorganized. When the food came, it was lukewarm. The manager offered no compensation. Very disappointing for a restaurant of this caliber.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 1,
+      "review_timestamp": 1748534400,
+      "review_datetime_utc": "05/29/2025 12:00:00",
+      "review_likes": 15
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_011",
+      "author_title": "Jennifer W",
+      "author_id": "100011",
+      "author_reviews_count": 44,
+      "review_text": "Gorgeous setting and the food is genuinely excellent. The line fish special was cooked to perfection. Only knocked off a star because we had to flag down our waiter repeatedly - seems like they need more staff.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "2",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1749744000,
+      "review_datetime_utc": "06/12/2025 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_012",
+      "author_title": "Mark D",
+      "author_id": "100012",
+      "author_reviews_count": 29,
+      "review_text": "Food is incredible - some of the best seafood in Cape Town. However, the wait times are unacceptable. Took 40 minutes to get seated, another 30 for starters. Staff seem overwhelmed and undertrained.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 3,
+      "review_timestamp": 1750953600,
+      "review_datetime_utc": "06/26/2025 12:00:00",
+      "review_likes": 9
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_013",
+      "author_title": "Claire J",
+      "author_id": "100013",
+      "author_reviews_count": 51,
+      "review_text": "Perfect dinner! The grilled calamari was melt-in-your-mouth good. Our server was knowledgeable about the menu and gave great suggestions. Lovely ambiance with the harbour lights.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1752163200,
+      "review_datetime_utc": "07/10/2025 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_014",
+      "author_title": "Steven R",
+      "author_id": "100014",
+      "author_reviews_count": 18,
+      "review_text": "Avoid the busy times. Came on a Saturday night and the wait was insane. Over an hour for food. The kitchen clearly can't handle the volume. Food was good but not worth the frustration.",
+      "review_questions": {
+        "Food": "4",
+        "Service": "1",
+        "Atmosphere": "3"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1753372800,
+      "review_datetime_utc": "07/24/2025 12:00:00",
+      "review_likes": 11
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_015",
+      "author_title": "Michelle F",
+      "author_id": "100015",
+      "author_reviews_count": 73,
+      "review_text": "The sushi platter was excellent - super fresh fish. Restaurant has beautiful views of the harbour. Service was slow initially but picked up once we got our waiter's attention. Overall a nice evening.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1754582400,
+      "review_datetime_utc": "08/07/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_016",
+      "author_title": "Andrew K",
+      "author_id": "100016",
+      "author_reviews_count": 36,
+      "review_text": "Seriously disappointed. Booked a table for 8pm, arrived on time, waited 45 minutes to be seated. Then another 35 minutes for drinks. I complained to the manager who seemed uninterested. The food was good but the whole experience was ruined.",
+      "review_questions": {
+        "Food": "4",
+        "Service": "1",
+        "Atmosphere": "3"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1755792000,
+      "review_datetime_utc": "08/21/2025 12:00:00",
+      "review_likes": 14
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_017",
+      "author_title": "Rebecca N",
+      "author_id": "100017",
+      "author_reviews_count": 42,
+      "review_text": "Lovely spot for lunch. The fish and chips was generous and well prepared. Staff were friendly if a bit stretched. Would come back for the food quality alone.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "3",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1757001600,
+      "review_datetime_utc": "09/04/2025 12:00:00",
+      "review_likes": 1
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_018",
+      "author_title": "Thomas G",
+      "author_id": "100018",
+      "author_reviews_count": 25,
+      "review_text": "The worst service I've experienced in years. Waiter was condescending, food took forever, and they got my order wrong. When I complained, I was basically told 'that's how it is'. Never again.",
+      "review_questions": {
+        "Food": "3",
+        "Service": "1",
+        "Atmosphere": "3"
+      },
+      "owner_answer": null,
+      "review_rating": 1,
+      "review_timestamp": 1758211200,
+      "review_datetime_utc": "09/18/2025 12:00:00",
+      "review_likes": 18
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_019",
+      "author_title": "Susan A",
+      "author_id": "100019",
+      "author_reviews_count": 58,
+      "review_text": "Great food in a beautiful location. The mussels were fantastic. Service could be better - had to wait quite a while between courses. But overall a pleasant experience.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1759420800,
+      "review_datetime_utc": "10/02/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B1_020",
+      "author_title": "Kevin C",
+      "author_id": "100020",
+      "author_reviews_count": 31,
+      "review_text": "Visited for my wife's birthday. Had to wait 55 minutes for our food despite the restaurant being half empty. The waiter forgot our wine order completely. When I asked the manager, he blamed the kitchen. Terrible coordination.",
+      "review_questions": {
+        "Food": "4",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1760630400,
+      "review_datetime_utc": "10/16/2025 12:00:00",
+      "review_likes": 10
+    }
+  ]
+}

@@ -22,6 +22,7 @@ const updateTaskSchema = z.object({
   status: z.nativeEnum(TaskStatus).optional(),
   assignedToId: z.string().nullable().optional(),
   dueDate: z.union([z.string().datetime(), z.null()]).optional().transform((v): Date | null | undefined => v ? new Date(v) : v === null ? null : undefined),
+  completedAt: z.string().datetime().optional().transform((v): Date | undefined => v ? new Date(v) : undefined),
   impactNotes: z.string().optional(),
 });
 

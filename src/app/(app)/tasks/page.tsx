@@ -204,6 +204,11 @@ function TasksContent() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   
+  // Complete task dialog (for backdating)
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
+  const [completionDate, setCompletionDate] = useState<string>("");
+  
   // Recalculate impact
   const [isRecalculating, setIsRecalculating] = useState(false);
 
@@ -296,19 +301,25 @@ function TasksContent() {
   }, [selectedTenantId, statusFilter, themeFilter]);
 
   // Update task status
-  const updateTaskStatus = async (taskId: string, newStatus: string) => {
+  const updateTaskStatus = async (taskId: string, newStatus: string, customCompletedAt?: string) => {
     try {
+      const body: { status: string; completedAt?: string } = { status: newStatus };
+      if (newStatus === 'COMPLETED' && customCompletedAt) {
+        body.completedAt = customCompletedAt;
+      }
+      
       const res = await fetch(`/api/portal/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
+        const updatedTask = await res.json();
         // Update local state
         setTasks(prev => prev.map(t => 
           t.id === taskId 
-            ? { ...t, status: newStatus, completedAt: newStatus === 'COMPLETED' ? new Date().toISOString() : t.completedAt }
+            ? { ...t, status: newStatus, completedAt: updatedTask.completedAt || (newStatus === 'COMPLETED' ? new Date().toISOString() : t.completedAt) }
             : t
         ));
         toast.success(newStatus === 'COMPLETED' ? 'Task completed!' : 'Status updated');
@@ -318,6 +329,27 @@ function TasksContent() {
     } catch {
       toast.error('Failed to update task');
     }
+  };
+
+  // Open completion dialog with date picker
+  const openCompleteDialog = (task: Task) => {
+    setTaskToComplete(task);
+    setCompletionDate(new Date().toISOString().split('T')[0]); // Default to today
+    setCompleteDialogOpen(true);
+  };
+
+  // Handle task completion with date
+  const handleCompleteWithDate = async () => {
+    if (!taskToComplete) return;
+    
+    const completedAt = completionDate 
+      ? new Date(completionDate + 'T12:00:00').toISOString() 
+      : new Date().toISOString();
+    
+    await updateTaskStatus(taskToComplete.id, 'COMPLETED', completedAt);
+    setCompleteDialogOpen(false);
+    setTaskToComplete(null);
+    setCompletionDate("");
   };
 
   // Create new task
@@ -861,7 +893,12 @@ function TasksContent() {
             onDrop={(e) => {
               e.preventDefault();
               const taskId = e.dataTransfer.getData('taskId');
-              if (taskId) updateTaskStatus(taskId, 'COMPLETED');
+              if (taskId) {
+                const task = tasks.find(t => t.id === taskId);
+                if (task && task.status !== 'COMPLETED') {
+                  openCompleteDialog(task);
+                }
+              }
             }}
           >
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-green-200">
@@ -997,7 +1034,8 @@ function TasksContent() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => updateTaskStatus(task.id, 'COMPLETED')}
+                          onClick={() => openCompleteDialog(task)}
+                          title="Complete task"
                         >
                           <CheckCircle className="h-4 w-4" />
                         </Button>
@@ -1477,8 +1515,8 @@ function TasksContent() {
               {selectedTask.status !== 'COMPLETED' && selectedTask.status !== 'CANCELLED' && (
                 <div className="flex gap-2">
                   <Button onClick={() => {
-                    updateTaskStatus(selectedTask.id, 'COMPLETED');
                     setDetailOpen(false);
+                    openCompleteDialog(selectedTask);
                   }}>
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Mark Complete
@@ -1561,6 +1599,42 @@ function TasksContent() {
             </Button>
             <Button onClick={createTask} disabled={isCreating || !newTaskTitle.trim()}>
               {isCreating ? "Creating..." : "Create Task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Task Dialog (with date picker) */}
+      <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Task</DialogTitle>
+            <DialogDescription>
+              {taskToComplete?.title}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="completionDate">Completion Date</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Set the date when this task was completed. Use a past date if backdating.
+              </p>
+              <Input
+                id="completionDate"
+                type="date"
+                value={completionDate}
+                onChange={(e) => setCompletionDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCompleteWithDate}>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Mark Complete
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,0 +1,284 @@
+{
+  "query": "Vineyard Bistro",
+  "name": "Vineyard Bistro",
+  "name_for_emails": "vineyardbistro",
+  "place_id": "ChIJdemo_vineyard_001",
+  "google_id": "ChIJdemo_vineyard_001",
+  "kgmid": "/g/demo_vineyard_001",
+  "full_address": "88 Main Road, Franschhoek, 7690",
+  "borough": null,
+  "street": "88 Main Road",
+  "postal_code": "7690",
+  "area_service": null,
+  "country_code": "ZA",
+  "country": "South Africa",
+  "city": "Franschhoek",
+  "us_state": null,
+  "state": null,
+  "plus_code": null,
+  "latitude": -33.913856,
+  "longitude": 19.117456,
+  "h3": null,
+  "time_zone": "Africa/Johannesburg",
+  "site": "https://www.vineyardbistro.co.za",
+  "phone": "+27 21 876 3200",
+  "type": "Restaurant",
+  "category": "French restaurant",
+  "subtypes": "French restaurant, Wine bar, Fine dining restaurant",
+  "rating": 4.6,
+  "reviews": 92,
+  "reviews_data": [
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_001",
+      "author_title": "Katherine M",
+      "author_id": "400001",
+      "author_reviews_count": 63,
+      "review_text": "What a turnaround! I reviewed this place poorly 8 months ago due to cleanliness issues and inconsistent food. Came back this week and it's like a completely different restaurant. Spotlessly clean, and my beef wellington was cooked to absolute perfection. They've clearly made some changes in the kitchen. Well done!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1732536000,
+      "review_datetime_utc": "11/25/2025 12:00:00",
+      "review_likes": 12
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_002",
+      "author_title": "Robert L",
+      "author_id": "400002",
+      "author_reviews_count": 41,
+      "review_text": "Outstanding experience. The restaurant was immaculate and the food was exceptional. The new chef really knows what they're doing - my duck confit was perfectly rendered and full of flavor. This is the Vineyard Bistro I remember from years ago!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1733140800,
+      "review_datetime_utc": "12/02/2025 12:00:00",
+      "review_likes": 7
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_003",
+      "author_title": "Linda S",
+      "author_id": "400003",
+      "author_reviews_count": 55,
+      "review_text": "Excellent lunch! The restaurant gleamed - clearly they've upped their cleaning game. My salmon was cooked exactly as ordered (medium) and the sauce was delicate and flavorful. The attention to detail in the kitchen is noticeably improved.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1733745600,
+      "review_datetime_utc": "12/09/2025 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_004",
+      "author_title": "Michael P",
+      "author_id": "400004",
+      "author_reviews_count": 33,
+      "review_text": "Brought clients here and was so pleased with the experience. Everything was spotless, the service was polished, and the food was exceptional. The fillet steak was perfectly cooked - pink in the middle just as requested. Top marks.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1734350400,
+      "review_datetime_utc": "12/16/2025 12:00:00",
+      "review_likes": 5
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_005",
+      "author_title": "Anne B",
+      "author_id": "400005",
+      "author_reviews_count": 72,
+      "review_text": "Christmas Eve dinner was magical. The restaurant sparkled with fairy lights and was beautifully clean. The food quality was outstanding - every dish cooked precisely as it should be. The lamb was tender, the vegetables crisp, the sauces balanced. Bravo to the team!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1735128000,
+      "review_datetime_utc": "12/25/2025 12:00:00",
+      "review_likes": 9
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_006",
+      "author_title": "Christopher H",
+      "author_id": "400006",
+      "author_reviews_count": 38,
+      "review_text": "Had heard they'd improved and it's true! The place was immaculate and the food was back to the standard I remembered from years ago. My risotto was creamy and perfectly seasoned. The kitchen is clearly firing on all cylinders again.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1735732800,
+      "review_datetime_utc": "01/01/2026 12:00:00",
+      "review_likes": 6
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_007",
+      "author_title": "Diana W",
+      "author_id": "400007",
+      "author_reviews_count": 49,
+      "review_text": "Finally returned after a disappointing visit last year. So glad I gave it another chance! The attention to cleanliness is obvious - fresh linens, sparkling glasses, spotless cutlery. And the food! The duck was sublime. Kitchen has really stepped up.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1736510400,
+      "review_datetime_utc": "01/10/2026 12:00:00",
+      "review_likes": 8
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_008",
+      "author_title": "Edward T",
+      "author_id": "400008",
+      "author_reviews_count": 26,
+      "review_text": "Lovely experience. Restaurant was sparkling clean and the food was excellent. My steak was cooked exactly medium-rare as ordered. Partner's fish was beautifully presented and tasted divine. This is the quality dining Franschhoek deserves.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1737115200,
+      "review_datetime_utc": "01/17/2026 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_009",
+      "author_title": "Fiona J",
+      "author_id": "400009",
+      "author_reviews_count": 58,
+      "review_text": "The transformation is remarkable. Used to dread mentioning this place because of inconsistent food. Now I'm recommending it to everyone! The chicken was juicy and perfectly seasoned, the presentation was beautiful. Whatever they changed in the kitchen is working.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1737720000,
+      "review_datetime_utc": "01/24/2026 12:00:00",
+      "review_likes": 7
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_010",
+      "author_title": "Greg M",
+      "author_id": "400010",
+      "author_reviews_count": 35,
+      "review_text": "Great lunch. The restaurant was clean and fresh, the food was well executed. My pork belly was crispy on top and meltingly tender inside. Good portion sizes too. The only small issue was a slightly long wait for dessert, but not a dealbreaker.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1738324800,
+      "review_datetime_utc": "01/31/2026 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_011",
+      "author_title": "Helen R",
+      "author_id": "400011",
+      "author_reviews_count": 67,
+      "review_text": "Anniversary dinner was perfect. The restaurant was beautifully clean with fresh flowers on every table. The beef bourguignon was rich and deeply flavored - you can tell they're using quality ingredients now. Staff were attentive and made us feel special.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1738929600,
+      "review_datetime_utc": "02/07/2026 12:00:00",
+      "review_likes": 6
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_012",
+      "author_title": "Ian K",
+      "author_id": "400012",
+      "author_reviews_count": 42,
+      "review_text": "Wonderful Valentine's dinner. The attention to detail was impressive - from the spotless glassware to the perfectly plated dishes. My lamb was pink and tender, exactly as requested. The new quality standards are evident throughout.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1739534400,
+      "review_datetime_utc": "02/14/2026 12:00:00",
+      "review_likes": 5
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_013",
+      "author_title": "Janet D",
+      "author_id": "400013",
+      "author_reviews_count": 51,
+      "review_text": "Sunday lunch was excellent. Clean restaurant, friendly staff, and most importantly - consistently good food! The roast chicken was juicy and well-seasoned. Finally a place in Franschhoek where the food matches the setting. Will definitely be back.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1739707200,
+      "review_datetime_utc": "02/16/2026 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B2_014",
+      "author_title": "Keith P",
+      "author_id": "400014",
+      "author_reviews_count": 29,
+      "review_text": "Impressed with the turnaround. A friend had warned me about quality issues but clearly those are in the past. The restaurant was spotless and my fillet was cooked exactly to my specifications. Great wine recommendations from the sommelier too. Highly recommend.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1739793600,
+      "review_datetime_utc": "02/17/2026 12:00:00",
+      "review_likes": 3
+    }
+  ]
+}

@@ -1,0 +1,392 @@
+{
+  "query": "Vineyard Bistro",
+  "name": "Vineyard Bistro",
+  "name_for_emails": "vineyardbistro",
+  "place_id": "ChIJdemo_vineyard_001",
+  "google_id": "ChIJdemo_vineyard_001",
+  "kgmid": "/g/demo_vineyard_001",
+  "full_address": "88 Main Road, Franschhoek, 7690",
+  "borough": null,
+  "street": "88 Main Road",
+  "postal_code": "7690",
+  "area_service": null,
+  "country_code": "ZA",
+  "country": "South Africa",
+  "city": "Franschhoek",
+  "us_state": null,
+  "state": null,
+  "plus_code": null,
+  "latitude": -33.913856,
+  "longitude": 19.117456,
+  "h3": null,
+  "time_zone": "Africa/Johannesburg",
+  "site": "https://www.vineyardbistro.co.za",
+  "phone": "+27 21 876 3200",
+  "type": "Restaurant",
+  "category": "French restaurant",
+  "subtypes": "French restaurant, Wine bar, Fine dining restaurant",
+  "rating": 3.9,
+  "reviews": 72,
+  "reviews_data": [
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_001",
+      "author_title": "Angela D",
+      "author_id": "300001",
+      "author_reviews_count": 58,
+      "review_text": "Beautiful setting in the heart of Franschhoek. Unfortunately, found a hair in my salad which really put me off. When I told the waiter, he just shrugged and took it away. No apology or replacement offered. The wine selection is excellent though.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "2",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1738425600,
+      "review_datetime_utc": "02/01/2025 12:00:00",
+      "review_likes": 6
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_002",
+      "author_title": "Charles B",
+      "author_id": "300002",
+      "author_reviews_count": 33,
+      "review_text": "The steak was overcooked despite asking for medium-rare. When I sent it back, the replacement was also wrong. Kitchen seems to have issues with temperatures. The restaurant itself is charming with lovely mountain views.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1739635200,
+      "review_datetime_utc": "02/15/2025 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_003",
+      "author_title": "Sophie V",
+      "author_id": "300003",
+      "author_reviews_count": 71,
+      "review_text": "Wonderful wine tasting experience paired with a lovely lunch. The duck confit was cooked to perfection. Staff were knowledgeable and friendly. Highly recommend for a special occasion.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1740844800,
+      "review_datetime_utc": "03/01/2025 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_004",
+      "author_title": "Marcus J",
+      "author_id": "300004",
+      "author_reviews_count": 24,
+      "review_text": "The tablecloths had visible stains and our table was sticky. Asked to move and the second table wasn't much better. For a restaurant charging these prices, cleanliness should be a priority. Food was average at best.",
+      "review_questions": {
+        "Food": "3",
+        "Service": "3",
+        "Atmosphere": "2"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1742054400,
+      "review_datetime_utc": "03/15/2025 12:00:00",
+      "review_likes": 9
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_005",
+      "author_title": "Natalie P",
+      "author_id": "300005",
+      "author_reviews_count": 46,
+      "review_text": "Disappointing lunch. My fish was undercooked in the middle - had to send it back. Husband's lamb was overly salty. The chef seems to be having consistency issues. Such a shame because the location is gorgeous.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1743264000,
+      "review_datetime_utc": "03/29/2025 12:00:00",
+      "review_likes": 7
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_006",
+      "author_title": "Oliver H",
+      "author_id": "300006",
+      "author_reviews_count": 62,
+      "review_text": "Great wine selection and the charcuterie board was excellent. Service was attentive and they made good recommendations for wine pairings. The venue is beautiful. Would come back for wine and nibbles.",
+      "review_questions": {
+        "Food": "4",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1744473600,
+      "review_datetime_utc": "04/12/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_007",
+      "author_title": "Emma W",
+      "author_id": "300007",
+      "author_reviews_count": 39,
+      "review_text": "Noticed the restrooms were dirty and there was no soap. Not acceptable for any restaurant, let alone one charging premium prices. The food was mediocre - my risotto was gluey and underseasoned. Won't be rushing back.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "3",
+        "Atmosphere": "2"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1745683200,
+      "review_datetime_utc": "04/26/2025 12:00:00",
+      "review_likes": 11
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_008",
+      "author_title": "Ryan M",
+      "author_id": "300008",
+      "author_reviews_count": 28,
+      "review_text": "The chicken was dry and overcooked. When I mentioned it, the chef came out and argued with me! Said that's how they cook it. Very unprofessional. The wine was good but I can get that at the wine estate next door.",
+      "review_questions": {
+        "Food": "1",
+        "Service": "1",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 1,
+      "review_timestamp": 1746892800,
+      "review_datetime_utc": "05/10/2025 12:00:00",
+      "review_likes": 14
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_009",
+      "author_title": "Julia S",
+      "author_id": "300009",
+      "author_reviews_count": 54,
+      "review_text": "Lovely atmosphere but the food let us down. My salad had wilted lettuce and husband's steak was tough. For the prices they charge, the quality should be much higher. The wine list is the only redeeming feature.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1748102400,
+      "review_datetime_utc": "05/24/2025 12:00:00",
+      "review_likes": 5
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_010",
+      "author_title": "Adrian K",
+      "author_id": "300010",
+      "author_reviews_count": 43,
+      "review_text": "Wonderful Sunday lunch! The roast beef was tender and perfectly cooked. Staff were friendly and the wine recommendations were spot on. The venue is charming - perfect for a lazy afternoon in the winelands.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1749312000,
+      "review_datetime_utc": "06/07/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_011",
+      "author_title": "Grace L",
+      "author_id": "300011",
+      "author_reviews_count": 67,
+      "review_text": "The floor near our table was dirty with crumbs from previous diners. The windows were covered in fingerprints. The general cleanliness is slipping. Food was OK but nothing special for the price.",
+      "review_questions": {
+        "Food": "3",
+        "Service": "3",
+        "Atmosphere": "2"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1750521600,
+      "review_datetime_utc": "06/21/2025 12:00:00",
+      "review_likes": 8
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_012",
+      "author_title": "David N",
+      "author_id": "300012",
+      "author_reviews_count": 31,
+      "review_text": "Ordered the lamb shank - it was cold in the middle and the sauce was congealed. Clearly had been sitting too long. Manager blamed the kitchen being 'slammed' but the restaurant was half empty. Food quality control is non-existent.",
+      "review_questions": {
+        "Food": "1",
+        "Service": "2",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 1,
+      "review_timestamp": 1751731200,
+      "review_datetime_utc": "07/05/2025 12:00:00",
+      "review_likes": 12
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_013",
+      "author_title": "Hannah T",
+      "author_id": "300013",
+      "author_reviews_count": 55,
+      "review_text": "Beautiful setting but the food doesn't match. My pasta was bland and overcooked. Partner's burger was burnt on the outside, raw inside. How does that even happen? Stick to the wine and skip the food.",
+      "review_questions": {
+        "Food": "1",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1752940800,
+      "review_datetime_utc": "07/19/2025 12:00:00",
+      "review_likes": 9
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_014",
+      "author_title": "Ethan R",
+      "author_id": "300014",
+      "author_reviews_count": 22,
+      "review_text": "The wine pairing menu was fantastic! Each wine perfectly complemented the food. The tasting portions were generous and the sommelier was incredibly knowledgeable. A must-do experience in Franschhoek.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1754150400,
+      "review_datetime_utc": "08/02/2025 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_015",
+      "author_title": "Megan F",
+      "author_id": "300015",
+      "author_reviews_count": 48,
+      "review_text": "Found sticky residue on my cutlery. When I asked for clean ones, the replacement set also had water spots. The attention to detail is poor. My salmon was decent but partner's pork was dry. Mixed experience overall.",
+      "review_questions": {
+        "Food": "3",
+        "Service": "2",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1755360000,
+      "review_datetime_utc": "08/16/2025 12:00:00",
+      "review_likes": 6
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_016",
+      "author_title": "Jason C",
+      "author_id": "300016",
+      "author_reviews_count": 36,
+      "review_text": "The duck was overcooked and the vegetables were mushy. Asked the waiter if the kitchen could redo it and was told 'that's how the chef prepares it'. For R450 a plate, I expect better. The views are wasted on mediocre food.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "2",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1756569600,
+      "review_datetime_utc": "08/30/2025 12:00:00",
+      "review_likes": 10
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_017",
+      "author_title": "Olivia A",
+      "author_id": "300017",
+      "author_reviews_count": 61,
+      "review_text": "Glasses had lipstick marks from previous customers. Not a great start to the meal. The food was average - nothing memorable. The location is stunning but cleanliness and food quality need serious attention.",
+      "review_questions": {
+        "Food": "3",
+        "Service": "2",
+        "Atmosphere": "3"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1757779200,
+      "review_datetime_utc": "09/13/2025 12:00:00",
+      "review_likes": 8
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_018",
+      "author_title": "Simon G",
+      "author_id": "300018",
+      "author_reviews_count": 29,
+      "review_text": "The beef bourguignon was watery and the meat was tough. My wife's chicken was rubbery. The chef seems to have lost their touch. We used to love this place but the quality has really declined. Time to look elsewhere.",
+      "review_questions": {
+        "Food": "2",
+        "Service": "3",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1758988800,
+      "review_datetime_utc": "09/27/2025 12:00:00",
+      "review_likes": 7
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_019",
+      "author_title": "Victoria E",
+      "author_id": "300019",
+      "author_reviews_count": 52,
+      "review_text": "Came for the wine and stayed for the cheese board which was excellent. The main courses were disappointing - overcooked pasta and under-seasoned soup. Stick to the lighter options and enjoy the views.",
+      "review_questions": {
+        "Food": "3",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 3,
+      "review_timestamp": 1760198400,
+      "review_datetime_utc": "10/11/2025 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_vineyard_001",
+      "review_id": "VB_B1_020",
+      "author_title": "Alex Z",
+      "author_id": "300020",
+      "author_reviews_count": 44,
+      "review_text": "Really wanted to love this place. The setting is perfect, the wine selection is top-notch. But the kitchen is letting the side down. My fillet was burnt outside, raw inside. Sent it back and the second attempt was barely better. They need to get back to basics.",
+      "review_questions": {
+        "Food": "1",
+        "Service": "3",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 2,
+      "review_timestamp": 1761408000,
+      "review_datetime_utc": "10/25/2025 12:00:00",
+      "review_likes": 11
+    }
+  ]
+}

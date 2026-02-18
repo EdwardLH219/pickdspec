@@ -1,0 +1,284 @@
+{
+  "query": "The Harbour Kitchen",
+  "name": "The Harbour Kitchen",
+  "name_for_emails": "theharbourkitchen",
+  "place_id": "ChIJdemo_harbour_001",
+  "google_id": "ChIJdemo_harbour_001",
+  "kgmid": "/g/demo_harbour_001",
+  "full_address": "45 Victoria Wharf, V&A Waterfront, Cape Town, 8001",
+  "borough": null,
+  "street": "45 Victoria Wharf",
+  "postal_code": "8001",
+  "area_service": null,
+  "country_code": "ZA",
+  "country": "South Africa",
+  "city": "Cape Town",
+  "us_state": null,
+  "state": null,
+  "plus_code": null,
+  "latitude": -33.903641,
+  "longitude": 18.420588,
+  "h3": null,
+  "time_zone": "Africa/Johannesburg",
+  "site": "https://www.theharbourkitchen.co.za",
+  "phone": "+27 21 418 5500",
+  "type": "Restaurant",
+  "category": "Seafood restaurant",
+  "subtypes": "Seafood restaurant, Fine dining restaurant",
+  "rating": 4.5,
+  "reviews": 105,
+  "reviews_data": [
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_001",
+      "author_title": "Laura M",
+      "author_id": "200001",
+      "author_reviews_count": 52,
+      "review_text": "What a transformation! I visited 6 months ago and the service was awful. Came back last night and wow - completely different experience. Our waiter Sipho was attentive, knowledgeable and efficient. Food arrived promptly and was delicious. So glad they've sorted things out!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1732449600,
+      "review_datetime_utc": "11/24/2025 12:00:00",
+      "review_likes": 8
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_002",
+      "author_title": "James W",
+      "author_id": "200002",
+      "author_reviews_count": 34,
+      "review_text": "Excellent evening at The Harbour Kitchen. The service was smooth and professional. Our server checked in at all the right moments without being intrusive. The seafood platter was fresh and beautifully presented. Highly recommend.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1733054400,
+      "review_datetime_utc": "12/01/2025 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_003",
+      "author_title": "Patricia K",
+      "author_id": "200003",
+      "author_reviews_count": 67,
+      "review_text": "Had a wonderful dinner here. The staff were so friendly and efficient. Food came out quickly and was piping hot. The grilled kingklip was exceptional. What a lovely way to spend an evening by the harbour.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1733659200,
+      "review_datetime_utc": "12/08/2025 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_004",
+      "author_title": "Brian T",
+      "author_id": "200004",
+      "author_reviews_count": 22,
+      "review_text": "Great improvement in service from my last visit. The team seems much better organized now. Food arrived within 20 minutes of ordering. The prawn linguine was delicious. Will definitely be back.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1734264000,
+      "review_datetime_utc": "12/15/2025 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_005",
+      "author_title": "Catherine R",
+      "author_id": "200005",
+      "author_reviews_count": 89,
+      "review_text": "Christmas dinner here was perfect. Despite being fully booked, the service was seamless. Our waiter managed to accommodate our dietary requests without any fuss. The seared tuna was incredible. Couldn't have asked for a better evening.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1735041600,
+      "review_datetime_utc": "12/24/2025 12:00:00",
+      "review_likes": 6
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_006",
+      "author_title": "Daniel F",
+      "author_id": "200006",
+      "author_reviews_count": 41,
+      "review_text": "New Year's Eve dinner was fantastic! The team handled a packed restaurant brilliantly. Our server was efficient and friendly. Food quality was top notch as always. The wait times have really improved.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1735646400,
+      "review_datetime_utc": "12/31/2025 12:00:00",
+      "review_likes": 5
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_007",
+      "author_title": "Michelle P",
+      "author_id": "200007",
+      "author_reviews_count": 56,
+      "review_text": "Lovely dinner with friends. The service was excellent - prompt and professional. Really noticed the improvement from my previous visits. The calamari starter was the best I've had. Beautiful sunset views too!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1736424000,
+      "review_datetime_utc": "01/09/2026 12:00:00",
+      "review_likes": 3
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_008",
+      "author_title": "Richard H",
+      "author_id": "200008",
+      "author_reviews_count": 29,
+      "review_text": "Visited for a business lunch. Service was efficient and unobtrusive - exactly what you need for a meeting. Food was excellent as expected. Really impressed with how smoothly everything ran. Will be bringing more clients here.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "4"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1737028800,
+      "review_datetime_utc": "01/16/2026 12:00:00",
+      "review_likes": 2
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_009",
+      "author_title": "Sandra L",
+      "author_id": "200009",
+      "author_reviews_count": 74,
+      "review_text": "Went back after reading recent reviews about the improved service. They were right! What a difference. Our food arrived promptly, the waiter was attentive and knowledgeable. The fish curry was phenomenal. So happy to see this place back on form.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1737633600,
+      "review_datetime_utc": "01/23/2026 12:00:00",
+      "review_likes": 7
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_010",
+      "author_title": "William B",
+      "author_id": "200010",
+      "author_reviews_count": 38,
+      "review_text": "Service was good but there's still room for improvement. Had to wait a bit longer than expected for drinks. However, the food was outstanding and the main course timing was perfect. Overall a very enjoyable evening.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 4,
+      "review_timestamp": 1738238400,
+      "review_datetime_utc": "01/30/2026 12:00:00",
+      "review_likes": 1
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_011",
+      "author_title": "Elizabeth M",
+      "author_id": "200011",
+      "author_reviews_count": 63,
+      "review_text": "Celebrated our anniversary here and it was wonderful. The staff went above and beyond - they even brought out a complimentary dessert with a candle. Service was impeccable throughout. The seafood platter for two was incredible. Highly recommend!",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1738843200,
+      "review_datetime_utc": "02/06/2026 12:00:00",
+      "review_likes": 9
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_012",
+      "author_title": "George S",
+      "author_id": "200012",
+      "author_reviews_count": 45,
+      "review_text": "Excellent service and amazing food. The team is really firing on all cylinders now. Our waiter Thabo was fantastic - friendly, quick and got everything right. The grilled linefish was perfectly cooked. This has become our go-to spot.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1739448000,
+      "review_datetime_utc": "02/13/2026 12:00:00",
+      "review_likes": 4
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_013",
+      "author_title": "Helen T",
+      "author_id": "200013",
+      "author_reviews_count": 31,
+      "review_text": "Valentine's dinner was perfect. Despite being packed, the service was smooth and efficient. They clearly have a well-trained team now. The lobster special was divine. Would highly recommend for special occasions.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "5",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1739620800,
+      "review_datetime_utc": "02/15/2026 12:00:00",
+      "review_likes": 6
+    },
+    {
+      "google_id": "ChIJdemo_harbour_001",
+      "review_id": "HK_B2_014",
+      "author_title": "Paul N",
+      "author_id": "200014",
+      "author_reviews_count": 27,
+      "review_text": "Had lunch here on Sunday. Service was friendly and efficient. No long waits like some of the older reviews mentioned. The mussels were fresh and the chips were crispy. A solid lunch spot with great views.",
+      "review_questions": {
+        "Food": "5",
+        "Service": "4",
+        "Atmosphere": "5"
+      },
+      "owner_answer": null,
+      "review_rating": 5,
+      "review_timestamp": 1739793600,
+      "review_datetime_utc": "02/17/2026 12:00:00",
+      "review_likes": 2
+    }
+  ]
+}

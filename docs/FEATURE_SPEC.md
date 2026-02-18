@@ -39,7 +39,7 @@ Pick't helps restaurants:
 |---------|-------------|
 | **Weighted Scoring** | Time-decayed, source-weighted, engagement-adjusted scores |
 | **Economic Impact** | Revenue-at-risk and upside calculations for each issue |
-| **FixScore™** | Measures actual sentiment improvement after completing tasks |
+| **FixScore** | Measures actual sentiment improvement after completing tasks |
 | **Till Slip Channel** | Direct customer feedback via QR codes with incentives |
 | **Activation Drafts** | AI-generated marketing content from improvements |
 
@@ -332,7 +332,7 @@ When completed:
 
 ### 7.1 Purpose
 
-FixScore™ measures **actual sentiment improvement** after completing a task, providing closed-loop validation.
+FixScore measures **actual sentiment improvement** after completing a task, providing closed-loop validation.
 
 ### 7.2 Calculation
 

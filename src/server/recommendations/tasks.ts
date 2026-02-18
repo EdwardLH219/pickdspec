@@ -35,6 +35,7 @@ export interface UpdateTaskInput {
   status?: TaskStatus;
   assignedToId?: string | null;
   dueDate?: Date | null;
+  completedAt?: Date;
   impactNotes?: string;
 }
 
@@ -184,7 +185,8 @@ export async function updateTask(taskId: string, input: UpdateTaskInput, userId:
   const updateData: Record<string, unknown> = { ...input };
   
   if (isBeingCompleted) {
-    updateData.completedAt = new Date();
+    // Use provided completedAt date or default to now
+    updateData.completedAt = input.completedAt || new Date();
   } else if (input.status === TaskStatus.IN_PROGRESS && !existingTask.status) {
     updateData.startedAt = new Date();
   }
