@@ -74,12 +74,12 @@ export const DEFAULT_PARAMETERS: ParameterSet = {
   },
   
   fix_tracking: {
-    pre_window_days: 30,
-    post_window_days: 30,
-    min_reviews_for_inference: 5,
+    pre_window_days: 90,  // Extended to capture reviews further back for baseline
+    post_window_days: 60, // Extended for more post-action data
+    min_reviews_for_inference: 3, // Lowered for demo scenarios
     confidence_thresholds: {
-      high: 10,
-      medium: 5,
+      high: 8,
+      medium: 4,
       low: 2,
     },
   },

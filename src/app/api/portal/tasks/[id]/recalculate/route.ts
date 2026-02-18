@@ -65,11 +65,12 @@ export async function POST(
     }
 
     // Debug: Check if reviews exist with this theme
+    // Use extended windows (90 days pre, 60 days post) for better data capture
     const completionDate = task.completedAt || new Date();
     const preStart = new Date(completionDate);
-    preStart.setDate(preStart.getDate() - 30);
+    preStart.setDate(preStart.getDate() - 90); // Extended pre-window
     const postEnd = new Date(completionDate);
-    postEnd.setDate(postEnd.getDate() + 30);
+    postEnd.setDate(postEnd.getDate() + 60); // Extended post-window
     
     // Count reviews with this theme in each period
     const preReviews = await db.review.findMany({
@@ -108,12 +109,28 @@ export async function POST(
       },
     });
     
+    // Get theme info for better debugging
+    const theme = await db.theme.findUnique({ where: { id: task.themeId }, select: { name: true } });
+    
+    // Check ALL reviews for this tenant
+    const allReviews = await db.review.findMany({
+      where: { tenantId: task.tenantId },
+      select: { id: true, reviewDate: true },
+      orderBy: { reviewDate: 'asc' },
+    });
+    
+    const reviewDateRange = allReviews.length > 0 
+      ? `${allReviews[0].reviewDate?.toISOString()} to ${allReviews[allReviews.length - 1].reviewDate?.toISOString()}`
+      : 'No reviews';
+    
     console.log('=== FixScore Debug ===');
     console.log('Task ID:', task.id);
-    console.log('Theme ID:', task.themeId);
+    console.log('Theme:', theme?.name, '(', task.themeId, ')');
     console.log('Completion Date:', completionDate.toISOString());
-    console.log('Pre Period:', preStart.toISOString(), 'to', completionDate.toISOString());
-    console.log('Post Period:', completionDate.toISOString(), 'to', postEnd.toISOString());
+    console.log('Pre Period (90 days):', preStart.toISOString(), 'to', completionDate.toISOString());
+    console.log('Post Period (60 days):', completionDate.toISOString(), 'to', postEnd.toISOString());
+    console.log('All Reviews Date Range:', reviewDateRange);
+    console.log('Total Reviews for Tenant:', allReviews.length);
     console.log('Pre Reviews with theme:', preReviews.length);
     console.log('Pre Reviews with scores (this run):', preReviews.filter(r => r.reviewScores.length > 0).length);
     console.log('Post Reviews with theme:', postReviews.length);

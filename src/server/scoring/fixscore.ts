@@ -292,8 +292,10 @@ export async function computeFixScore(
     parameters = paramVersion.parameters as unknown as ParameterSet;
   }
   
-  const { pre_window_days, post_window_days, min_reviews_for_inference, confidence_thresholds } = 
-    parameters.fix_tracking;
+  // Use extended windows for better data capture (override shorter stored values)
+  const pre_window_days = Math.max(parameters.fix_tracking.pre_window_days, 90);
+  const post_window_days = Math.max(parameters.fix_tracking.post_window_days, 60);
+  const { min_reviews_for_inference, confidence_thresholds } = parameters.fix_tracking;
   
   // Determine completion date
   let actionDate = completionDate;
@@ -307,7 +309,7 @@ export async function computeFixScore(
   actionDate = actionDate ?? new Date();
   
   // Calculate measurement windows
-  const preStart = new Date(actionDate);
+  let preStart = new Date(actionDate);
   preStart.setDate(preStart.getDate() - pre_window_days);
   
   const preEnd = new Date(actionDate);
@@ -315,12 +317,30 @@ export async function computeFixScore(
   
   const postStart = new Date(actionDate);
   
-  const postEnd = new Date(actionDate);
+  let postEnd = new Date(actionDate);
   postEnd.setDate(postEnd.getDate() + post_window_days);
   
   // Analyze both periods
-  const prePeriod = await analyzePeriod(tenantId, themeId, preStart, preEnd, scoreRunId);
-  const postPeriod = await analyzePeriod(tenantId, themeId, postStart, postEnd, scoreRunId);
+  let prePeriod = await analyzePeriod(tenantId, themeId, preStart, preEnd, scoreRunId);
+  
+  // If no baseline data found, progressively extend the pre-window up to 365 days
+  if (prePeriod.reviewCount === 0 && pre_window_days < 365) {
+    const extendedPreStart = new Date(actionDate);
+    extendedPreStart.setDate(extendedPreStart.getDate() - 365);
+    logger.info({ themeId, originalPreStart: preStart, extendedPreStart }, 'Extending pre-window to find baseline data');
+    prePeriod = await analyzePeriod(tenantId, themeId, extendedPreStart, preEnd, scoreRunId);
+    preStart = extendedPreStart;
+  }
+  
+  let postPeriod = await analyzePeriod(tenantId, themeId, postStart, postEnd, scoreRunId);
+  
+  // If no post data found, extend to current date
+  if (postPeriod.reviewCount === 0) {
+    const extendedPostEnd = new Date();
+    logger.info({ themeId, originalPostEnd: postEnd, extendedPostEnd }, 'Extending post-window to find post-action data');
+    postPeriod = await analyzePeriod(tenantId, themeId, postStart, extendedPostEnd, scoreRunId);
+    postEnd = extendedPostEnd;
+  }
   
   // Calculate delta
   const deltaS = calculateDeltaS(prePeriod.themeSentiment, postPeriod.themeSentiment);

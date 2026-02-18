@@ -226,6 +226,44 @@ function TasksContent() {
   
   // Source filter for impact breakdown
   const [impactSourceFilter, setImpactSourceFilter] = useState<string>('all');
+  
+  // Diagnostic dialog for insufficient data
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [diagnosticData, setDiagnosticData] = useState<{
+    task: { themeName: string; completedAt: string };
+    windows: { prePeriod: { label: string }; postPeriod: { label: string } };
+    reviewCounts: {
+      totalReviews: number;
+      reviewsWithTheme: number;
+      preReviewsWithTheme: number;
+      preReviewsWithScores: number;
+      postReviewsWithTheme: number;
+      postReviewsWithScores: number;
+    };
+    diagnosis: { issue: string; message: string; suggestion: string };
+    sampleReviewsWithTheme: Array<{ id: string; date: string; snippet: string }>;
+  } | null>(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  
+  // Fetch diagnostic data for a task
+  const fetchDiagnostic = async (taskId: string) => {
+    setDiagnosticLoading(true);
+    setDiagnosticData(null);
+    try {
+      const res = await fetch(`/api/portal/tasks/${taskId}/diagnose`);
+      if (res.ok) {
+        const data = await res.json();
+        setDiagnosticData(data);
+        setDiagnosticOpen(true);
+      } else {
+        toast.error('Failed to load diagnostic data');
+      }
+    } catch {
+      toast.error('Error loading diagnostic data');
+    } finally {
+      setDiagnosticLoading(false);
+    }
+  };
 
   // Fetch timeline data when viewing a completed task
   const fetchTimeline = async (taskId: string) => {
@@ -514,10 +552,18 @@ function TasksContent() {
 
     if (task.fixScore.status === 'insufficient_data') {
       return (
-        <div className="flex items-center gap-1 text-xs text-yellow-600">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            fetchDiagnostic(task.id);
+          }}
+          className="flex items-center gap-1 text-xs text-yellow-600 hover:text-yellow-700 hover:underline cursor-pointer"
+          title="Click to see why"
+        >
           <Info className="h-3 w-3" />
-          <span>Insufficient data</span>
-        </div>
+          <span>{diagnosticLoading ? 'Loading...' : 'Insufficient data'}</span>
+          <Eye className="h-3 w-3 opacity-50" />
+        </button>
       );
     }
 
@@ -1635,6 +1681,118 @@ function TasksContent() {
             <Button onClick={handleCompleteWithDate}>
               <CheckCircle className="h-4 w-4 mr-2" />
               Mark Complete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diagnostic Dialog for Insufficient Data */}
+      <Dialog open={diagnosticOpen} onOpenChange={setDiagnosticOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              FixScore Diagnostic
+            </DialogTitle>
+            <DialogDescription>
+              Why is this task showing &quot;Insufficient data&quot;?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {diagnosticData && (
+            <div className="space-y-4">
+              {/* Issue Summary */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="font-medium text-yellow-800">{diagnosticData.diagnosis.message}</p>
+                <p className="text-sm text-yellow-700 mt-2">
+                  💡 <strong>Suggestion:</strong> {diagnosticData.diagnosis.suggestion}
+                </p>
+              </div>
+
+              {/* Task Info */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Task Details</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-muted-foreground">Theme:</div>
+                  <div><Badge variant="outline">{diagnosticData.task.themeName}</Badge></div>
+                  <div className="text-muted-foreground">Completed:</div>
+                  <div>{new Date(diagnosticData.task.completedAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              {/* Windows */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Measurement Windows</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-muted-foreground">Pre-period (90 days):</div>
+                  <div>{diagnosticData.windows.prePeriod.label}</div>
+                  <div className="text-muted-foreground">Post-period (60 days):</div>
+                  <div>{diagnosticData.windows.postPeriod.label}</div>
+                </div>
+              </div>
+
+              {/* Review Counts */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Review Data</h4>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr>
+                        <td className="text-muted-foreground py-1">Total reviews (all themes):</td>
+                        <td className="text-right font-medium">{diagnosticData.reviewCounts.totalReviews}</td>
+                      </tr>
+                      <tr>
+                        <td className="text-muted-foreground py-1">Reviews with &quot;{diagnosticData.task.themeName}&quot;:</td>
+                        <td className="text-right font-medium">{diagnosticData.reviewCounts.reviewsWithTheme}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="text-muted-foreground py-1">In pre-period (with theme):</td>
+                        <td className={`text-right font-medium ${diagnosticData.reviewCounts.preReviewsWithTheme === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {diagnosticData.reviewCounts.preReviewsWithTheme}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="text-muted-foreground py-1 pl-4">↳ with scores:</td>
+                        <td className={`text-right font-medium ${diagnosticData.reviewCounts.preReviewsWithScores === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {diagnosticData.reviewCounts.preReviewsWithScores}
+                        </td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="text-muted-foreground py-1">In post-period (with theme):</td>
+                        <td className={`text-right font-medium ${diagnosticData.reviewCounts.postReviewsWithTheme === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {diagnosticData.reviewCounts.postReviewsWithTheme}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="text-muted-foreground py-1 pl-4">↳ with scores:</td>
+                        <td className={`text-right font-medium ${diagnosticData.reviewCounts.postReviewsWithScores === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {diagnosticData.reviewCounts.postReviewsWithScores}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Sample Reviews */}
+              {diagnosticData.sampleReviewsWithTheme.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Sample reviews with this theme</h4>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {diagnosticData.sampleReviewsWithTheme.map((r) => (
+                      <div key={r.id} className="text-xs bg-gray-50 rounded p-2">
+                        <span className="text-muted-foreground">{r.date}:</span> {r.snippet}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDiagnosticOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
