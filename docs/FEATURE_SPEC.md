@@ -51,6 +51,31 @@ Reviews → Scoring → Recommendations → Tasks → FixScore → Activations
  Ingest    Analyze     Prioritize    Execute   Measure    Capitalize
 ```
 
+### 1.4 Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Framework** | Next.js 16 (App Router) | Full-stack React framework with server components |
+| **Language** | TypeScript | Type-safe development |
+| **Database** | PostgreSQL | Primary data store |
+| **ORM** | Prisma | Database access and migrations |
+| **Authentication** | NextAuth.js | Multi-provider auth with session management |
+| **AI/NLP** | OpenAI GPT-4o-mini, GPT-5-mini | Sentiment analysis, theme extraction, content generation |
+| **UI Components** | shadcn/ui + Radix | Accessible, customizable component library |
+| **Styling** | Tailwind CSS | Utility-first CSS framework |
+| **Charts** | Recharts | Dashboard visualizations |
+| **Animations** | Framer Motion | UI transitions and micro-interactions |
+| **Deployment** | Vercel | Serverless hosting with edge functions |
+| **File Storage** | Vercel Blob (planned) | File uploads and QR code storage |
+
+#### Architecture Highlights:
+
+- **Server Components**: Data fetching at the server level for performance
+- **Server Actions**: Secure mutations without API routes where appropriate
+- **Streaming**: Server-Sent Events (SSE) for live scoring progress
+- **Multi-tenant**: Organization → Tenant hierarchy with row-level security
+- **Extensible Connectors**: Plugin architecture for review source integrations
+
 ---
 
 ## 2. Review Ingestion & Data Sources
