@@ -24,7 +24,7 @@ import type {
 // ============================================================
 
 /**
- * Outscraper review structure (from JSON export)
+ * Outscraper review structure - ORIGINAL FORMAT (from JSON export)
  */
 interface OutscraperReview {
   google_id: string;
@@ -66,7 +66,7 @@ interface OutscraperReview {
 }
 
 /**
- * Outscraper place/business data (top-level of JSON)
+ * Outscraper place/business data - ORIGINAL FORMAT (top-level of JSON)
  */
 interface OutscraperPlace {
   query: string;
@@ -80,6 +80,78 @@ interface OutscraperPlace {
   reviews?: number;
   reviews_tags?: string[];
   reviews_data: OutscraperReview[];
+}
+
+// ============================================================
+// ALTERNATE "MERGED" FORMAT TYPES
+// ============================================================
+
+/**
+ * Alternate review structure - MERGED FORMAT
+ * Field mapping: text->review_text, rating->review_rating, author->author_title,
+ * timestamp->review_timestamp, sub_ratings->review_questions
+ */
+interface MergedFormatReview {
+  source: string;
+  review_id: string;
+  rating: number;
+  rating_scale?: number;
+  text?: string | null;
+  date?: string;
+  timestamp: number;
+  review_likes?: number | null;
+  sub_ratings?: {
+    'Meal type'?: string;
+    'Price per person'?: string;
+    'Food'?: string;
+    'Service'?: string;
+    'Atmosphere'?: string;
+    'Group size'?: string;
+    'Wait time'?: string;
+    'Seating type'?: string;
+    'Parking space'?: string;
+    'Parking options'?: string;
+    'Noise level'?: string;
+    'Reservation'?: string;
+    [key: string]: string | undefined | null;
+  } | null;
+  owner_answer?: string | null;
+  owner_answer_date?: string | null;
+  author: string;
+  author_id?: string;
+  author_reviews_count?: number;
+  has_photos?: boolean;
+  photo_count?: number;
+  review_link?: string;
+}
+
+/**
+ * Alternate place structure - MERGED FORMAT (nested in "place" object)
+ */
+interface MergedFormatPlace {
+  name: string;
+  full_address?: string;
+  rating?: number;
+  total_reviews?: number | null;
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  country?: string;
+  phone?: string;
+  site?: string | null;
+  place_id: string;
+}
+
+/**
+ * Top-level structure for MERGED FORMAT
+ */
+interface MergedFormatData {
+  name: string;
+  slug?: string;
+  place: MergedFormatPlace;
+  reviews: MergedFormatReview[];
+  sources?: { [key: string]: number };
+  fetched_at?: string;
 }
 
 /**
@@ -119,13 +191,111 @@ interface OutscraperExtendedData {
 }
 
 // ============================================================
+// FORMAT DETECTION & NORMALIZATION
+// ============================================================
+
+type DataFormat = 'original' | 'merged' | 'unknown';
+
+/**
+ * Detect which format the parsed JSON is in
+ */
+function detectFormat(data: unknown): DataFormat {
+  if (!data || typeof data !== 'object') return 'unknown';
+  
+  // Check for array of original format places
+  if (Array.isArray(data)) {
+    if (data.length > 0 && 'reviews_data' in data[0]) {
+      return 'original';
+    }
+    return 'unknown';
+  }
+  
+  // Check for single object
+  const obj = data as Record<string, unknown>;
+  
+  // Original format: has reviews_data array at root
+  if ('reviews_data' in obj && Array.isArray(obj.reviews_data)) {
+    return 'original';
+  }
+  
+  // Merged format: has nested "place" object and "reviews" array (not reviews_data)
+  if ('place' in obj && typeof obj.place === 'object' && 
+      'reviews' in obj && Array.isArray(obj.reviews) &&
+      !('reviews_data' in obj)) {
+    return 'merged';
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * Convert a merged format review to original format
+ */
+function normalizeMergedReview(review: MergedFormatReview, placeId: string): OutscraperReview {
+  // Parse owner_answer_date to timestamp if present
+  let ownerAnswerTimestamp: number | undefined;
+  if (review.owner_answer_date) {
+    const parsed = new Date(review.owner_answer_date);
+    if (!isNaN(parsed.getTime())) {
+      ownerAnswerTimestamp = Math.floor(parsed.getTime() / 1000);
+    }
+  }
+  
+  // Build image URLs array from has_photos/photo_count
+  const reviewImgUrls: string[] | null = review.has_photos && review.photo_count 
+    ? Array(review.photo_count).fill('[photo]') 
+    : null;
+  
+  return {
+    google_id: placeId,
+    review_id: review.review_id,
+    author_title: review.author,
+    author_id: review.author_id,
+    author_reviews_count: review.author_reviews_count,
+    review_text: review.text,
+    review_img_urls: reviewImgUrls,
+    review_questions: review.sub_ratings ? 
+      Object.fromEntries(
+        Object.entries(review.sub_ratings).filter(([, v]) => v !== null)
+      ) as OutscraperReview['review_questions'] : null,
+    owner_answer: review.owner_answer,
+    owner_answer_timestamp: ownerAnswerTimestamp,
+    review_link: review.review_link,
+    review_rating: review.rating,
+    review_timestamp: review.timestamp,
+    review_datetime_utc: review.date,
+    review_likes: review.review_likes,
+  };
+}
+
+/**
+ * Convert merged format data to original format place array
+ */
+function normalizeMergedFormat(data: MergedFormatData): OutscraperPlace[] {
+  const place: OutscraperPlace = {
+    query: data.name,
+    name: data.name,
+    place_id: data.place.place_id,
+    google_id: data.place.place_id,
+    full_address: data.place.full_address,
+    city: data.place.city,
+    country: data.place.country,
+    rating: data.place.rating,
+    reviews: data.place.total_reviews ?? data.reviews.length,
+    reviews_data: data.reviews.map(r => normalizeMergedReview(r, data.place.place_id)),
+  };
+  
+  return [place];
+}
+
+// ============================================================
 // TRANSFORMER FUNCTIONS
 // ============================================================
 
 /**
  * Parse structured rating string to number (e.g., "4" -> 4)
  */
-function parseStructuredRating(value: string | undefined): number | undefined {
+function parseStructuredRating(value: string | undefined | null): number | undefined {
   if (!value) return undefined;
   const num = parseInt(value, 10);
   return !isNaN(num) && num >= 1 && num <= 5 ? num : undefined;
@@ -257,6 +427,7 @@ export class OutscraperConnector extends BaseConnector {
   
   /**
    * Parse uploaded Outscraper JSON file
+   * Supports both original format (reviews_data) and merged format (reviews + place)
    */
   async parseUpload(
     file: Buffer,
@@ -269,10 +440,10 @@ export class OutscraperConnector extends BaseConnector {
     try {
       // Parse JSON content
       const content = file.toString('utf-8');
-      let data: OutscraperPlace | OutscraperPlace[];
+      let rawData: unknown;
       
       try {
-        data = JSON.parse(content);
+        rawData = JSON.parse(content);
       } catch (parseError) {
         return {
           reviews: [],
@@ -286,8 +457,29 @@ export class OutscraperConnector extends BaseConnector {
         };
       }
       
-      // Handle both single place and array of places
-      const places: OutscraperPlace[] = Array.isArray(data) ? data : [data];
+      // Detect format and normalize to original format
+      const format = detectFormat(rawData);
+      let places: OutscraperPlace[];
+      
+      if (format === 'merged') {
+        // Normalize merged format to original format
+        places = normalizeMergedFormat(rawData as MergedFormatData);
+      } else if (format === 'original') {
+        // Already in original format
+        const data = rawData as OutscraperPlace | OutscraperPlace[];
+        places = Array.isArray(data) ? data : [data];
+      } else {
+        return {
+          reviews: [],
+          hasMore: false,
+          errors: [this.createError(
+            IngestionErrorType.VALIDATION_ERROR,
+            `Unrecognized JSON format. Expected either "reviews_data" array (original format) or "place" object with "reviews" array (merged format).`,
+            { filename },
+            false
+          )],
+        };
+      }
       
       if (places.length === 0) {
         return {
@@ -360,6 +552,7 @@ export class OutscraperConnector extends BaseConnector {
       // Build metadata
       const metadata = {
         filename,
+        detectedFormat: format,
         placesCount: places.length,
         places: places.map(p => ({
           name: p.name,
@@ -419,7 +612,7 @@ export class OutscraperConnector extends BaseConnector {
 // Register the connector
 registerConnector(SourceType.GOOGLE_OUTSCRAPER, {
   displayName: 'Google Reviews (API)',
-  description: 'Import Google reviews from JSON export with rich metadata',
+  description: 'Import Google reviews from JSON export (supports both original and merged formats)',
   supportsAutoSync: false,
   requiresUpload: true,
   factory: (connectorId, config) => new OutscraperConnector(connectorId, config),
