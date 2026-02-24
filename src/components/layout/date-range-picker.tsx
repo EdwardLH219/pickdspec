@@ -15,6 +15,7 @@ const dateRangeOptions: { value: DateRangePreset; label: string }[] = [
   { value: "30d", label: "Last 30 days" },
   { value: "90d", label: "Last 90 days" },
   { value: "365d", label: "Last 365 days" },
+  { value: "all", label: "All time" },
   { value: "custom", label: "Custom range" },
 ];
 

@@ -201,7 +201,7 @@ export interface DashboardData {
 // FILTERS & QUERIES
 // ============================================
 
-export type DateRangePreset = "30d" | "90d" | "365d" | "custom";
+export type DateRangePreset = "30d" | "90d" | "365d" | "all" | "custom";
 
 export interface DateRange {
   start: string;

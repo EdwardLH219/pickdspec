@@ -47,7 +47,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRangePreset>("30d");
+  const [dateRange, setDateRange] = useState<DateRangePreset>("365d");
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch tenants the user has access to
@@ -95,6 +95,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         break;
       case "365d":
         start.setFullYear(end.getFullYear() - 1);
+        break;
+      case "all":
+        // Set to a very early date to include all data
+        start.setFullYear(2000, 0, 1);
         break;
       case "custom":
         // Default to 30 days for custom when no specific range set

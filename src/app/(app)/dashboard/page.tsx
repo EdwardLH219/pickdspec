@@ -206,8 +206,11 @@ export default function DashboardPage() {
           case "365d":
             start.setFullYear(end.getFullYear() - 1);
             break;
+          case "all":
+            start.setFullYear(2000, 0, 1);
+            break;
           default:
-            start.setDate(end.getDate() - 30);
+            start.setFullYear(end.getFullYear() - 1);
         }
         const startDate = start.toISOString();
         const endDate = end.toISOString();
