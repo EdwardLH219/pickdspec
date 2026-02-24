@@ -604,7 +604,7 @@ export class OutscraperConnector extends BaseConnector {
         const reviewsData = rawData as ReviewsOnlyData;
         // Separate Google and Booking reviews
         for (const review of reviewsData.reviews) {
-          const source = detectReviewSource(review as Record<string, unknown>);
+          const source = detectReviewSource(review as unknown as Record<string, unknown>);
           if (source === 'booking') {
             bookingReviews.push(review as BookingReview);
           } else {
