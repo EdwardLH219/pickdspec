@@ -319,6 +319,7 @@ model Connector {
 enum SourceType {
   GOOGLE
   GOOGLE_OUTSCRAPER
+  BOOKING           // Booking.com reviews
   HELLOPETER
   FACEBOOK
   TRIPADVISOR
@@ -442,6 +443,10 @@ model Review {
   connector   Connector? @relation(fields: [connectorId], references: [id], onDelete: Cascade)
 
   externalReviewId String?
+  
+  // Source type (allows mixed-source imports, e.g., Google + Booking in one file)
+  // If null, falls back to connector's sourceType
+  sourceType SourceType?
   
   // Till Slip source linkage (when source = TILL_SLIP)
   tillReviewSubmissionId String?              @unique

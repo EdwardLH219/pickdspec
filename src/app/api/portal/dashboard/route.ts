@@ -13,6 +13,28 @@ import { hasTenantAccess } from '@/server/auth/rbac';
 import { db } from '@/server/db';
 
 /**
+ * Get human-readable display name for source type
+ */
+function getSourceDisplayName(sourceType: string): string {
+  const displayNames: Record<string, string> = {
+    GOOGLE: 'Google',
+    GOOGLE_OUTSCRAPER: 'Google (API)',
+    BOOKING: 'Booking.com',
+    HELLOPETER: 'HelloPeter',
+    FACEBOOK: 'Facebook',
+    TRIPADVISOR: 'TripAdvisor',
+    YELP: 'Yelp',
+    ZOMATO: 'Zomato',
+    OPENTABLE: 'OpenTable',
+    WEBSITE: 'Website',
+    INSTAGRAM: 'Instagram',
+    TWITTER: 'Twitter/X',
+    TILL_SLIP: 'Till Slip Feedback',
+  };
+  return displayNames[sourceType] || sourceType;
+}
+
+/**
  * GET /api/portal/dashboard
  */
 export async function GET(request: NextRequest) {
@@ -137,8 +159,8 @@ export async function GET(request: NextRequest) {
     }));
 
     // Get source distribution within the date range
-    const sourceStats = await db.review.groupBy({
-      by: ['connectorId'],
+    // Now includes review.sourceType for mixed-source imports (e.g., Google + Booking in one file)
+    const reviewsForSourceStats = await db.review.findMany({
       where: {
         tenantId,
         reviewDate: {
@@ -146,32 +168,50 @@ export async function GET(request: NextRequest) {
           lte: filterEndDate,
         },
       },
-      _count: { id: true },
+      select: {
+        sourceType: true,
+        connectorId: true,
+        connector: {
+          select: { sourceType: true, name: true },
+        },
+      },
     });
 
-    // Enrich with connector info (filter out null connectorIds for Till Slip reviews)
-    const connectorIds = sourceStats.map(s => s.connectorId).filter((id): id is string => id !== null);
-    const connectors = await db.connector.findMany({
-      where: { id: { in: connectorIds } },
-      select: { id: true, sourceType: true, name: true },
-    });
-
-    const sourceDistribution = sourceStats.map(s => {
-      // Handle Till Slip reviews (no connector)
-      if (!s.connectorId) {
-        return {
-          source: 'TILL_SLIP' as const,
-          sourceName: 'Till Slip Feedback',
-          count: s._count.id,
-        };
+    // Build source distribution map
+    const sourceMap = new Map<string, { sourceName: string; count: number }>();
+    
+    for (const review of reviewsForSourceStats) {
+      // Priority: review.sourceType > connector.sourceType > TILL_SLIP (if no connector) > UNKNOWN
+      let source: string;
+      let sourceName: string;
+      
+      if (review.sourceType) {
+        source = review.sourceType;
+        sourceName = getSourceDisplayName(review.sourceType);
+      } else if (review.connector?.sourceType) {
+        source = review.connector.sourceType;
+        sourceName = review.connector.name || getSourceDisplayName(review.connector.sourceType);
+      } else if (!review.connectorId) {
+        source = 'TILL_SLIP';
+        sourceName = 'Till Slip Feedback';
+      } else {
+        source = 'UNKNOWN';
+        sourceName = 'Unknown';
       }
-      const connector = connectors.find(c => c.id === s.connectorId);
-      return {
-        source: connector?.sourceType ?? 'UNKNOWN',
-        sourceName: connector?.name ?? 'Unknown',
-        count: s._count.id,
-      };
-    });
+      
+      const existing = sourceMap.get(source);
+      if (existing) {
+        existing.count++;
+      } else {
+        sourceMap.set(source, { sourceName, count: 1 });
+      }
+    }
+    
+    const sourceDistribution = Array.from(sourceMap.entries()).map(([source, data]) => ({
+      source,
+      sourceName: data.sourceName,
+      count: data.count,
+    }));
 
     // ===== TIME SERIES DATA =====
     // Get reviews with dates for trend analysis within the selected date range
@@ -237,6 +277,7 @@ export async function GET(request: NextRequest) {
         rating: true,
         reviewDate: true,
         authorName: true,
+        sourceType: true, // Review's own source type (for mixed-source imports)
         connector: {
           select: { sourceType: true },
         },
@@ -258,7 +299,7 @@ export async function GET(request: NextRequest) {
       rating: review.rating,
       reviewDate: review.reviewDate,
       authorName: review.authorName || 'Anonymous',
-      sourceType: review.connector?.sourceType || null,
+      sourceType: review.sourceType || review.connector?.sourceType || null,
       themes: review.reviewThemes
         .filter(rt => rt.sentiment === 'NEGATIVE')
         .map(rt => rt.theme.name)

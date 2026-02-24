@@ -55,6 +55,9 @@ export interface NormalizedReview {
   /** Detected language code (e.g., 'en', 'af') */
   detectedLanguage?: string;
   
+  /** Override source type (for mixed-source imports) */
+  sourceType?: SourceType;
+  
   /** Raw data from source for debugging/audit */
   rawData?: Record<string, unknown>;
 }

@@ -311,6 +311,7 @@ async function processReviews(
           tenantId,
           connectorId,
           externalReviewId: review.externalId,
+          sourceType: review.sourceType, // Override source type for mixed-source imports
           rating: review.rating,
           title: review.title,
           content: review.content,

@@ -1,9 +1,12 @@
 /**
- * Outscraper Google Reviews Connector
+ * Multi-Source Reviews Connector (Outscraper/Google/Booking)
  * 
- * Imports Google reviews from Outscraper JSON export files.
- * Outscraper provides rich review data including structured ratings
- * (Food, Service, Atmosphere) and author credibility signals.
+ * Imports reviews from various JSON export formats:
+ * - Original Outscraper format (reviews_data array)
+ * - Merged format (place object + reviews array)
+ * - Reviews-only format (just reviews array, mixed sources)
+ * 
+ * Supports Google and Booking.com reviews with automatic source detection.
  * 
  * @see https://outscraper.com/google-maps-reviews-scraper/
  */
@@ -18,6 +21,9 @@ import type {
   FetchError,
   ConnectorHealth,
 } from '../types';
+
+// Source type for individual reviews (detected from 'source' field)
+type ReviewSourceType = 'google' | 'booking' | 'unknown';
 
 // ============================================================
 // OUTSCRAPER DATA TYPES
@@ -154,6 +160,48 @@ interface MergedFormatData {
   fetched_at?: string;
 }
 
+// ============================================================
+// REVIEWS-ONLY FORMAT TYPES
+// ============================================================
+
+/**
+ * Reviews-only format - just an array of reviews at root
+ * Used when place metadata is not included
+ */
+interface ReviewsOnlyData {
+  reviews: (MergedFormatReview | BookingReview)[];
+}
+
+// ============================================================
+// BOOKING.COM FORMAT TYPES
+// ============================================================
+
+/**
+ * Booking.com review structure
+ */
+interface BookingReview {
+  source: 'booking';
+  review_id: string;
+  rating: number;
+  rating_scale: number;
+  rating_original?: number;
+  rating_original_scale?: number;
+  text?: string | null;
+  text_liked?: string | null;
+  text_disliked?: string | null;
+  review_title?: string | null;
+  date?: string;
+  timestamp: number;
+  owner_answer?: string | null;
+  author: string;
+  author_id?: string;
+  author_country?: string;
+  author_type?: string;
+  author_room?: string;
+  author_stay_date?: string;
+  author_stay_period?: string;
+}
+
 /**
  * Extended review data stored in rawData for future use
  */
@@ -194,7 +242,7 @@ interface OutscraperExtendedData {
 // FORMAT DETECTION & NORMALIZATION
 // ============================================================
 
-type DataFormat = 'original' | 'merged' | 'unknown';
+type DataFormat = 'original' | 'merged' | 'reviews_only' | 'unknown';
 
 /**
  * Detect which format the parsed JSON is in
@@ -225,6 +273,29 @@ function detectFormat(data: unknown): DataFormat {
     return 'merged';
   }
   
+  // Reviews-only format: just has "reviews" array at root (no place object)
+  if ('reviews' in obj && Array.isArray(obj.reviews) && !('place' in obj)) {
+    return 'reviews_only';
+  }
+  
+  return 'unknown';
+}
+
+/**
+ * Detect the source type of an individual review
+ */
+function detectReviewSource(review: Record<string, unknown>): ReviewSourceType {
+  const source = review.source as string | undefined;
+  if (source === 'booking') return 'booking';
+  if (source === 'google') return 'google';
+  // If no source field but has google-specific fields, assume google
+  if ('google_id' in review || 'review_questions' in review || 'sub_ratings' in review) {
+    return 'google';
+  }
+  // If has booking-specific fields
+  if ('text_liked' in review || 'text_disliked' in review || 'author_room' in review) {
+    return 'booking';
+  }
   return 'unknown';
 }
 
@@ -282,10 +353,64 @@ function normalizeMergedFormat(data: MergedFormatData): OutscraperPlace[] {
     country: data.place.country,
     rating: data.place.rating,
     reviews: data.place.total_reviews ?? data.reviews.length,
-    reviews_data: data.reviews.map(r => normalizeMergedReview(r, data.place.place_id)),
+    reviews_data: data.reviews
+      .filter(r => (r as { source?: string }).source !== 'booking')
+      .map(r => normalizeMergedReview(r as MergedFormatReview, data.place.place_id)),
   };
   
   return [place];
+}
+
+/**
+ * Transform a Booking.com review to normalized format
+ */
+function transformBookingReview(review: BookingReview, index: number): NormalizedReview {
+  const reviewDate = new Date(review.timestamp * 1000);
+  
+  // Combine text_liked and text_disliked into content
+  let content = review.text || '';
+  if (!content) {
+    const parts: string[] = [];
+    if (review.text_liked) {
+      parts.push(`Liked: ${review.text_liked}`);
+    }
+    if (review.text_disliked) {
+      parts.push(`Disliked: ${review.text_disliked}`);
+    }
+    content = parts.join(' | ') || '[Rating only - no text content]';
+  }
+  
+  // Clean up HTML line breaks
+  content = content.replace(/<br\s*\/?>/gi, '\n').trim();
+  
+  return {
+    externalId: review.review_id,
+    rating: review.rating,
+    content,
+    authorName: review.author,
+    authorId: review.author_id,
+    reviewDate,
+    responseText: review.owner_answer || undefined,
+    responseDate: undefined,
+    likesCount: 0,
+    sourceType: SourceType.BOOKING,
+    rawData: {
+      source: 'booking',
+      originalReview: review,
+      extended: {
+        authorCountry: review.author_country,
+        authorType: review.author_type,
+        authorRoom: review.author_room,
+        stayDate: review.author_stay_date,
+        stayPeriod: review.author_stay_period,
+        reviewTitle: review.review_title,
+        ratingOriginal: review.rating_original,
+        ratingOriginalScale: review.rating_original_scale,
+        textLiked: review.text_liked,
+        textDisliked: review.text_disliked,
+      },
+    },
+  };
 }
 
 // ============================================================
@@ -459,42 +584,47 @@ export class OutscraperConnector extends BaseConnector {
       
       // Detect format and normalize to original format
       const format = detectFormat(rawData);
-      let places: OutscraperPlace[];
+      let places: OutscraperPlace[] = [];
+      let bookingReviews: BookingReview[] = [];
+      let googleReviewsOnly: MergedFormatReview[] = [];
       
       if (format === 'merged') {
         // Normalize merged format to original format
-        places = normalizeMergedFormat(rawData as MergedFormatData);
+        const mergedData = rawData as MergedFormatData;
+        places = normalizeMergedFormat(mergedData);
+        // Extract booking reviews separately
+        bookingReviews = mergedData.reviews
+          .filter(r => (r as { source?: string }).source === 'booking') as BookingReview[];
       } else if (format === 'original') {
         // Already in original format
         const data = rawData as OutscraperPlace | OutscraperPlace[];
         places = Array.isArray(data) ? data : [data];
+      } else if (format === 'reviews_only') {
+        // Reviews-only format - no place metadata
+        const reviewsData = rawData as ReviewsOnlyData;
+        // Separate Google and Booking reviews
+        for (const review of reviewsData.reviews) {
+          const source = detectReviewSource(review as Record<string, unknown>);
+          if (source === 'booking') {
+            bookingReviews.push(review as BookingReview);
+          } else {
+            googleReviewsOnly.push(review as MergedFormatReview);
+          }
+        }
       } else {
         return {
           reviews: [],
           hasMore: false,
           errors: [this.createError(
             IngestionErrorType.VALIDATION_ERROR,
-            `Unrecognized JSON format. Expected either "reviews_data" array (original format) or "place" object with "reviews" array (merged format).`,
+            `Unrecognized JSON format. Expected "reviews_data" array (original), "place" + "reviews" (merged), or just "reviews" array (reviews-only).`,
             { filename },
             false
           )],
         };
       }
       
-      if (places.length === 0) {
-        return {
-          reviews: [],
-          hasMore: false,
-          errors: [this.createError(
-            IngestionErrorType.VALIDATION_ERROR,
-            'JSON file contains no place data',
-            { filename },
-            false
-          )],
-        };
-      }
-      
-      // Process each place
+      // Process places (original and merged formats)
       let totalReviewsProcessed = 0;
       
       for (const place of places) {
@@ -549,7 +679,95 @@ export class OutscraperConnector extends BaseConnector {
         }
       }
       
+      // Process reviews-only Google reviews (no place metadata)
+      for (let i = 0; i < googleReviewsOnly.length; i++) {
+        const review = googleReviewsOnly[i];
+        try {
+          if (!review.review_id) {
+            errors.push(this.createError(
+              IngestionErrorType.VALIDATION_ERROR,
+              `Google review at index ${i} has no review_id`,
+              { index: i },
+              false
+            ));
+            continue;
+          }
+          if (!review.timestamp) {
+            errors.push(this.createError(
+              IngestionErrorType.VALIDATION_ERROR,
+              `Google review ${review.review_id} has no timestamp`,
+              { reviewId: review.review_id },
+              false
+            ));
+            continue;
+          }
+          
+          // Create a minimal place object for reviews-only format
+          const minimalPlace: OutscraperPlace = {
+            query: 'Unknown',
+            name: 'Unknown',
+            place_id: 'reviews-only',
+            google_id: 'reviews-only',
+            reviews_data: [],
+          };
+          const normalizedReview = normalizeMergedReview(review, 'reviews-only');
+          const transformed = transformReview(normalizedReview, minimalPlace, i);
+          reviews.push(transformed);
+          totalReviewsProcessed++;
+        } catch (reviewError) {
+          errors.push(this.createError(
+            IngestionErrorType.PARSE_ERROR,
+            `Failed to transform Google review at index ${i}: ${reviewError instanceof Error ? reviewError.message : 'Unknown error'}`,
+            { index: i, reviewId: review.review_id },
+            false
+          ));
+        }
+      }
+      
+      // Process Booking.com reviews
+      let bookingCount = 0;
+      for (let i = 0; i < bookingReviews.length; i++) {
+        const review = bookingReviews[i];
+        try {
+          if (!review.review_id) {
+            errors.push(this.createError(
+              IngestionErrorType.VALIDATION_ERROR,
+              `Booking review at index ${i} has no review_id`,
+              { index: i },
+              false
+            ));
+            continue;
+          }
+          if (!review.timestamp) {
+            errors.push(this.createError(
+              IngestionErrorType.VALIDATION_ERROR,
+              `Booking review ${review.review_id} has no timestamp`,
+              { reviewId: review.review_id },
+              false
+            ));
+            continue;
+          }
+          
+          const normalizedReview = transformBookingReview(review, i);
+          reviews.push(normalizedReview);
+          bookingCount++;
+          totalReviewsProcessed++;
+        } catch (reviewError) {
+          errors.push(this.createError(
+            IngestionErrorType.PARSE_ERROR,
+            `Failed to transform Booking review at index ${i}: ${reviewError instanceof Error ? reviewError.message : 'Unknown error'}`,
+            { index: i, reviewId: review.review_id },
+            false
+          ));
+        }
+      }
+      
       // Build metadata
+      const totalReviewsInFile = 
+        places.reduce((sum, p) => sum + (p.reviews_data?.length || 0), 0) +
+        googleReviewsOnly.length +
+        bookingReviews.length;
+      
       const metadata = {
         filename,
         detectedFormat: format,
@@ -563,7 +781,7 @@ export class OutscraperConnector extends BaseConnector {
           reviewsInFile: p.reviews_data?.length || 0,
           reviewsTags: p.reviews_tags,
         })),
-        totalReviewsInFile: places.reduce((sum, p) => sum + (p.reviews_data?.length || 0), 0),
+        totalReviewsInFile,
         successfullyParsed: reviews.length,
         parseErrors: errors.length,
         reviewsWithText: reviews.filter(r => !r.content.startsWith('[Rating only') && !r.content.startsWith('[Structured')).length,
@@ -571,6 +789,10 @@ export class OutscraperConnector extends BaseConnector {
           const ext = r.rawData?.extended as OutscraperExtendedData | undefined;
           return ext?.foodRating || ext?.serviceRating || ext?.atmosphereRating;
         }).length,
+        sourceBreakdown: {
+          google: reviews.length - bookingCount,
+          booking: bookingCount,
+        },
       };
       
       return {
@@ -612,7 +834,7 @@ export class OutscraperConnector extends BaseConnector {
 // Register the connector
 registerConnector(SourceType.GOOGLE_OUTSCRAPER, {
   displayName: 'Google Reviews (API)',
-  description: 'Import Google reviews from JSON export (supports both original and merged formats)',
+  description: 'Import reviews from JSON export (supports Google & Booking.com, multiple formats)',
   supportsAutoSync: false,
   requiresUpload: true,
   factory: (connectorId, config) => new OutscraperConnector(connectorId, config),
