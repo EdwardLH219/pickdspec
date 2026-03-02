@@ -362,10 +362,92 @@ function normalizeMergedFormat(data: MergedFormatData): OutscraperPlace[] {
 }
 
 /**
+ * Parse international date strings (handles Lithuanian, German, Spanish, etc.)
+ * Patterns: "2025 m. gruodžio 24 d." (Lithuanian), "24. Dezember 2025" (German), etc.
+ */
+function parseInternationalDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  
+  // Lithuanian format: "2025 m. gruodžio 24 d."
+  const lithuanianMatch = dateStr.match(/(\d{4})\s*m\.\s*(\S+)\s+(\d{1,2})\s*d\./);
+  if (lithuanianMatch) {
+    const year = parseInt(lithuanianMatch[1]);
+    const monthStr = lithuanianMatch[2].toLowerCase();
+    const day = parseInt(lithuanianMatch[3]);
+    
+    let month = -1;
+    if (monthStr.startsWith('saus')) month = 0;       // January
+    else if (monthStr.startsWith('vasar')) month = 1; // February
+    else if (monthStr.startsWith('kov')) month = 2;   // March
+    else if (monthStr.startsWith('balan')) month = 3; // April
+    else if (monthStr.startsWith('gegu')) month = 4;  // May
+    else if (monthStr.startsWith('bir')) month = 5;   // June
+    else if (monthStr.startsWith('liep')) month = 6;  // July
+    else if (monthStr.startsWith('rugp')) month = 7;  // August
+    else if (monthStr.startsWith('rugs')) month = 8;  // September
+    else if (monthStr.startsWith('spal')) month = 9;  // October
+    else if (monthStr.startsWith('lapkr')) month = 10; // November
+    else if (monthStr.startsWith('gruod')) month = 11; // December
+    
+    if (month !== -1) {
+      return new Date(year, month, day, 12, 0, 0);
+    }
+  }
+  
+  // Standard date format: "MM/DD/YYYY HH:MM:SS" or "DD/MM/YYYY"
+  const standardMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (standardMatch) {
+    const part1 = parseInt(standardMatch[1]);
+    const part2 = parseInt(standardMatch[2]);
+    const year = parseInt(standardMatch[3]);
+    // Assume MM/DD/YYYY format (US style)
+    return new Date(year, part1 - 1, part2, 12, 0, 0);
+  }
+  
+  // Try native Date parsing as fallback
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1970) {
+    return parsed;
+  }
+  
+  return null;
+}
+
+/**
+ * Safely parse a timestamp, with fallback to date string parsing
+ */
+function safeParseTimestamp(timestamp: number, dateString?: string | null): Date {
+  // Check for invalid/negative timestamps
+  if (timestamp <= 0 || timestamp < 0) {
+    // Try parsing the date string instead
+    if (dateString) {
+      const parsed = parseInternationalDate(dateString);
+      if (parsed) return parsed;
+    }
+    // Default to current date if all else fails
+    return new Date();
+  }
+  
+  const date = new Date(timestamp * 1000);
+  
+  // Sanity check: if date is before 1990 or after 2100, it's likely corrupted
+  if (date.getFullYear() < 1990 || date.getFullYear() > 2100) {
+    if (dateString) {
+      const parsed = parseInternationalDate(dateString);
+      if (parsed) return parsed;
+    }
+    return new Date();
+  }
+  
+  return date;
+}
+
+/**
  * Transform a Booking.com review to normalized format
  */
 function transformBookingReview(review: BookingReview, index: number): NormalizedReview {
-  const reviewDate = new Date(review.timestamp * 1000);
+  // Use safe timestamp parsing with date string fallback
+  const reviewDate = safeParseTimestamp(review.timestamp, review.date);
   
   // Combine text_liked and text_disliked into content
   let content = review.text || '';
@@ -434,12 +516,12 @@ function transformReview(
   place: OutscraperPlace,
   index: number
 ): NormalizedReview {
-  // Parse review timestamp (Unix epoch seconds)
-  const reviewDate = new Date(review.review_timestamp * 1000);
+  // Parse review timestamp with safe fallback to date string
+  const reviewDate = safeParseTimestamp(review.review_timestamp, review.review_datetime_utc);
   
   // Parse owner response timestamp if exists
   let responseDate: Date | undefined;
-  if (review.owner_answer_timestamp) {
+  if (review.owner_answer_timestamp && review.owner_answer_timestamp > 0) {
     responseDate = new Date(review.owner_answer_timestamp * 1000);
   }
   

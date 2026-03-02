@@ -39,7 +39,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, MessageSquareReply } from 'lucide-react';
 
 // Color palette
 const COLORS = {
@@ -635,6 +635,7 @@ interface WorstReview {
   authorName: string;
   sourceType: string | null;
   themes: string[];
+  responseText?: string | null;
 }
 
 interface WorstReviewsCardProps {
@@ -731,6 +732,11 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
                       {getRatingStars(review.rating)}
                     </span>
                   )}
+                  {review.responseText && (
+                    <span className="inline-flex items-center text-blue-500" title="Owner responded">
+                      <MessageSquareReply className="h-3 w-3" />
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] text-gray-400">
@@ -802,6 +808,19 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
                       {theme}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+            {selectedReview?.responseText && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-2">Owner Response</p>
+                <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-400">
+                  <p 
+                    className="text-sm text-gray-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{ 
+                      __html: selectedReview.responseText.replace(/<br\s*\/?>/gi, '<br />') 
+                    }}
+                  />
                 </div>
               </div>
             )}

@@ -278,6 +278,7 @@ export async function GET(request: NextRequest) {
         reviewDate: true,
         authorName: true,
         sourceType: true, // Review's own source type (for mixed-source imports)
+        responseText: true, // Owner response
         connector: {
           select: { sourceType: true },
         },
@@ -300,6 +301,7 @@ export async function GET(request: NextRequest) {
       reviewDate: review.reviewDate,
       authorName: review.authorName || 'Anonymous',
       sourceType: review.sourceType || review.connector?.sourceType || null,
+      responseText: review.responseText,
       themes: review.reviewThemes
         .filter(rt => rt.sentiment === 'NEGATIVE')
         .map(rt => rt.theme.name)

@@ -155,6 +155,7 @@ export async function GET(request: NextRequest) {
       likesCount: r.likesCount,
       repliesCount: r.repliesCount,
       helpfulCount: r.helpfulCount,
+      responseText: r.responseText,
     }));
 
     // CSV export

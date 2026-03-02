@@ -48,6 +48,7 @@ import {
   RefreshCw,
   Clock,
   Calendar,
+  MessageSquareReply,
 } from "lucide-react";
 
 // Format source type for display
@@ -91,6 +92,7 @@ interface Review {
   likesCount: number;
   repliesCount: number;
   helpfulCount: number;
+  responseText: string | null;
 }
 
 interface ThemeBreakdownItem {
@@ -630,11 +632,19 @@ export default function ReportsPage() {
                       <TableCell className="max-w-md">
                         <div>
                           <p className="line-clamp-2 text-sm">{review.content}</p>
-                          {review.authorName && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              by {review.authorName}
-                            </p>
-                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {review.authorName && (
+                              <p className="text-xs text-muted-foreground">
+                                by {review.authorName}
+                              </p>
+                            )}
+                            {review.responseText && (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400" title="Owner responded">
+                                <MessageSquareReply className="h-3 w-3" />
+                                <span className="hidden sm:inline">Replied</span>
+                              </span>
+                            )}
+                          </div>
                           {review.themes.length > 0 && (
                             <div className="flex gap-1 mt-2 flex-wrap">
                               {review.themes.slice(0, 3).map(theme => (
@@ -991,6 +1001,20 @@ export default function ReportsPage() {
                         </span>
                       </Badge>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedReview.responseText && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Owner Response</p>
+                  <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border-l-4 border-blue-400">
+                    <p 
+                      className="text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{ 
+                        __html: selectedReview.responseText.replace(/<br\s*\/?>/gi, '<br />') 
+                      }}
+                    />
                   </div>
                 </div>
               )}
