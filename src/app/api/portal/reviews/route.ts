@@ -128,10 +128,21 @@ export async function GET(request: NextRequest) {
       skip: querySkip,
     });
 
-    // Filter by sentiment if specified (post-query since it's from reviewScores)
+    // Filter by sentiment if specified
+    // When themeId is also set, use the theme-specific sentiment (from reviewThemes)
+    // so the count matches recommendation cards. Otherwise fall back to overall review sentiment.
     let filteredReviews = reviews;
     if (sentiment) {
       filteredReviews = reviews.filter(r => {
+        if (themeId) {
+          const themeSentiment = r.reviewThemes.find(rt => rt.theme.id === themeId)?.sentiment;
+          if (!themeSentiment) return false;
+          if (sentiment === 'positive') return themeSentiment === 'POSITIVE';
+          if (sentiment === 'negative') return themeSentiment === 'NEGATIVE';
+          if (sentiment === 'neutral') return themeSentiment === 'NEUTRAL';
+          if (sentiment === 'non-positive') return themeSentiment !== 'POSITIVE';
+          return true;
+        }
         const score = r.reviewScores[0]?.baseSentiment ?? 0;
         if (sentiment === 'positive') return score > 0.3;
         if (sentiment === 'negative') return score < -0.3;
