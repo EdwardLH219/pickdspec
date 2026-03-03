@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useBranch } from "@/hooks/use-branch";
@@ -147,14 +147,9 @@ export default function ReportsPage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const initialSentiment = searchParams.get('sentiment');
-  const initialThemeId = searchParams.get('themeId');
-  const initialThemeName = searchParams.get('themeName');
-  const [sentimentFilter, setSentimentFilter] = useState(
-    initialSentiment && ['positive', 'neutral', 'negative', 'non-positive'].includes(initialSentiment) ? initialSentiment : "all"
-  );
-  const [themeFilter, setThemeFilter] = useState<string | null>(initialThemeId || null);
-  const [themeName, setThemeName] = useState<string | null>(initialThemeName || null);
+  const [sentimentFilter, setSentimentFilter] = useState("all");
+  const [themeFilter, setThemeFilter] = useState<string | null>(null);
+  const [themeName, setThemeName] = useState<string | null>(null);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -211,19 +206,8 @@ export default function ReportsPage() {
     }
   };
   
-  // Sync filters if URL params change after initial load
-  useEffect(() => {
-    const themeId = searchParams.get('themeId');
-    const theme = searchParams.get('themeName');
-    const sentiment = searchParams.get('sentiment');
-    if (themeId && themeId !== themeFilter) {
-      setThemeFilter(themeId);
-      setThemeName(theme);
-    }
-    if (sentiment && ['positive', 'neutral', 'negative', 'non-positive'].includes(sentiment) && sentiment !== sentimentFilter) {
-      setSentimentFilter(sentiment);
-    }
-  }, [searchParams]);
+  // Track the last searchParams string to detect URL-driven navigation
+  const lastSearchParamsRef = useRef(searchParams.toString());
   
   // Theme Breakdown state
   const [themes, setThemes] = useState<ThemeBreakdownItem[]>([]);
@@ -257,19 +241,23 @@ export default function ReportsPage() {
     return data;
   };
 
-  // Fetch reviews
-  const fetchReviews = async () => {
-    if (!selectedTenantId) return;
-
+  // Fetch reviews with explicit filter values to avoid stale closures
+  const fetchReviews = useCallback(async (filters: {
+    tenantId: string;
+    source: string;
+    sentiment: string;
+    search: string;
+    themeId: string | null;
+  }) => {
     setReviewsLoading(true);
     setReviewsError(null);
 
     try {
-      const params = new URLSearchParams({ tenantId: selectedTenantId });
-      if (sourceFilter !== "all") params.set("source", sourceFilter);
-      if (sentimentFilter !== "all") params.set("sentiment", sentimentFilter);
-      if (searchQuery) params.set("search", searchQuery);
-      if (themeFilter) params.set("themeId", themeFilter);
+      const params = new URLSearchParams({ tenantId: filters.tenantId });
+      if (filters.source !== "all") params.set("source", filters.source);
+      if (filters.sentiment !== "all") params.set("sentiment", filters.sentiment);
+      if (filters.search) params.set("search", filters.search);
+      if (filters.themeId) params.set("themeId", filters.themeId);
 
       const { start, end } = getDateRange();
       params.set("dateFrom", start.toISOString());
@@ -289,7 +277,7 @@ export default function ReportsPage() {
     } finally {
       setReviewsLoading(false);
     }
-  };
+  }, [getDateRange]);
 
   // Fetch themes
   const fetchThemes = async () => {
@@ -400,14 +388,54 @@ export default function ReportsPage() {
     }
   };
 
-  // Fetch data when tenant or filter changes
+  // Unified data loading effect
+  // Reads URL params directly (always current) to avoid stale state race conditions.
+  // Sets state for UI display, then fetches with the definitive filter values.
   useEffect(() => {
-    if (selectedTenantId) {
-      fetchReviews();
-      fetchThemes();
-      fetchSummaries();
+    if (!selectedTenantId) return;
+
+    const currentParamsStr = searchParams.toString();
+    const isUrlNavigation = currentParamsStr !== lastSearchParamsRef.current;
+    lastSearchParamsRef.current = currentParamsStr;
+
+    // Read URL params (source of truth when navigating from recommendations)
+    const urlThemeId = searchParams.get('themeId');
+    const urlThemeName = searchParams.get('themeName');
+    const urlSentiment = searchParams.get('sentiment');
+    const validSentiments = ['positive', 'neutral', 'negative', 'non-positive'];
+
+    // Determine effective filter values:
+    // On URL navigation, URL params override state. Otherwise, use current state.
+    let effectiveTheme = themeFilter;
+    let effectiveSentiment = sentimentFilter;
+
+    if (urlThemeId) {
+      effectiveTheme = urlThemeId;
+      if (urlThemeId !== themeFilter) {
+        setThemeFilter(urlThemeId);
+        setThemeName(urlThemeName);
+      }
     }
-  }, [selectedTenantId, themeFilter, sentimentFilter, sourceFilter, dateRange]);
+    if (urlSentiment && validSentiments.includes(urlSentiment)) {
+      effectiveSentiment = urlSentiment;
+      if (urlSentiment !== sentimentFilter) {
+        setSentimentFilter(urlSentiment);
+      }
+    }
+
+    fetchReviews({
+      tenantId: selectedTenantId,
+      source: sourceFilter,
+      sentiment: effectiveSentiment,
+      search: searchQuery,
+      themeId: effectiveTheme,
+    });
+    fetchThemes();
+    fetchSummaries();
+    // searchParams is included so URL-driven navigation triggers a re-fetch.
+    // Filter state vars are included so interactive filter changes also trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTenantId, searchParams, dateRange]);
 
   // CSV Export
   const exportCSV = async () => {
@@ -445,14 +473,40 @@ export default function ReportsPage() {
     }
   };
 
+  // Helper: trigger a review fetch with explicit filter overrides
+  const triggerFetch = (overrides?: Partial<{
+    source: string;
+    sentiment: string;
+    search: string;
+    themeId: string | null;
+  }>) => {
+    if (!selectedTenantId) return;
+    fetchReviews({
+      tenantId: selectedTenantId,
+      source: overrides?.source ?? sourceFilter,
+      sentiment: overrides?.sentiment ?? sentimentFilter,
+      search: overrides?.search ?? searchQuery,
+      themeId: overrides?.themeId !== undefined ? overrides.themeId : themeFilter,
+    });
+  };
+
   const clearFilters = () => {
     setSearchQuery("");
     setSourceFilter("all");
     setSentimentFilter("all");
     setThemeFilter(null);
     setThemeName(null);
-    // Clear URL params
     window.history.replaceState({}, '', '/reports');
+    // Fetch with cleared values explicitly
+    if (selectedTenantId) {
+      fetchReviews({
+        tenantId: selectedTenantId,
+        source: "all",
+        sentiment: "all",
+        search: "",
+        themeId: null,
+      });
+    }
   };
 
   const hasActiveFilters = searchQuery || sourceFilter !== "all" || sentimentFilter !== "all" || themeFilter;
@@ -577,6 +631,15 @@ export default function ReportsPage() {
                       setThemeName(null);
                       setSentimentFilter('all');
                       window.history.replaceState({}, '', '/reports');
+                      if (selectedTenantId) {
+                        fetchReviews({
+                          tenantId: selectedTenantId,
+                          source: sourceFilter,
+                          sentiment: "all",
+                          search: searchQuery,
+                          themeId: null,
+                        });
+                      }
                     }}
                   >
                     <X className="h-4 w-4 mr-1" />
@@ -601,11 +664,11 @@ export default function ReportsPage() {
                     placeholder="Search reviews..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && fetchReviews()}
+                    onKeyDown={(e) => e.key === 'Enter' && triggerFetch()}
                   />
                 </div>
 
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <Select value={sourceFilter} onValueChange={(val) => { setSourceFilter(val); triggerFetch({ source: val }); }}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
@@ -620,7 +683,7 @@ export default function ReportsPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={sentimentFilter} onValueChange={setSentimentFilter}>
+                <Select value={sentimentFilter} onValueChange={(val) => { setSentimentFilter(val); triggerFetch({ sentiment: val }); }}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Sentiment" />
                   </SelectTrigger>
@@ -633,7 +696,7 @@ export default function ReportsPage() {
                   </SelectContent>
                 </Select>
 
-                <Button onClick={fetchReviews} size="sm">
+                <Button onClick={() => triggerFetch()} size="sm">
                   <Search className="h-4 w-4 mr-1" />
                   Search
                 </Button>
