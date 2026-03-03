@@ -647,7 +647,26 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
   const [selectedReview, setSelectedReview] = useState<WorstReview | null>(null);
   const [generatedResponse, setGeneratedResponse] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const loadExistingResponse = async (reviewId: string) => {
+    if (!tenantId) return;
+    setIsLoadingResponse(true);
+    try {
+      const res = await fetch(`/api/portal/reviews/generate-response?reviewId=${reviewId}&tenantId=${tenantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.response) {
+          setGeneratedResponse(data.response);
+        }
+      }
+    } catch {
+      // Silently fail — user can still generate a new one
+    } finally {
+      setIsLoadingResponse(false);
+    }
+  };
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return '';
@@ -750,7 +769,12 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                    onClick={() => setSelectedReview(review)}
+                    onClick={() => {
+                      setSelectedReview(review);
+                      setGeneratedResponse(null);
+                      setCopied(false);
+                      loadExistingResponse(review.id);
+                    }}
                     title="View full review"
                   >
                     <Eye className="h-3 w-3" />
@@ -835,7 +859,12 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
             {/* Generate Response Section */}
             {selectedReview && selectedReview.rating !== null && selectedReview.rating <= 3 && tenantId && (
               <div className="pt-2 border-t">
-                {!generatedResponse ? (
+                {isLoadingResponse ? (
+                  <div className="flex items-center justify-center py-3 gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading saved response...
+                  </div>
+                ) : !generatedResponse ? (
                   <Button
                     size="sm"
                     className="w-full gap-2"

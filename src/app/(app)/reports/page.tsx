@@ -151,7 +151,26 @@ export default function ReportsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [generatedResponse, setGeneratedResponse] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const loadExistingResponse = async (reviewId: string) => {
+    if (!selectedTenantId) return;
+    setIsLoadingResponse(true);
+    try {
+      const res = await fetch(`/api/portal/reviews/generate-response?reviewId=${reviewId}&tenantId=${selectedTenantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.response) {
+          setGeneratedResponse(data.response);
+        }
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setIsLoadingResponse(false);
+    }
+  };
   
   // Initialize filters from URL params
   useEffect(() => {
@@ -683,6 +702,9 @@ export default function ReportsPage() {
                           onClick={() => {
                             setSelectedReview(review);
                             setReviewDetailOpen(true);
+                            setGeneratedResponse(null);
+                            setCopied(false);
+                            loadExistingResponse(review.id);
                           }}
                         >
                           View
@@ -1041,7 +1063,12 @@ export default function ReportsPage() {
               {/* Generate Response Section */}
               {selectedReview.rating !== null && selectedReview.rating <= 3 && selectedTenantId && (
                 <div className="pt-2 border-t">
-                  {!generatedResponse ? (
+                  {isLoadingResponse ? (
+                    <div className="flex items-center justify-center py-3 gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading saved response...
+                    </div>
+                  ) : !generatedResponse ? (
                     <Button
                       size="sm"
                       className="w-full gap-2"

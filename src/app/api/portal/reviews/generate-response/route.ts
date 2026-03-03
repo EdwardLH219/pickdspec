@@ -217,15 +217,78 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'AI returned an empty response. Please try again.' }, { status: 500 });
     }
 
+    // Persist the generated response
+    const saved = await db.generatedResponse.create({
+      data: {
+        reviewId,
+        content: generatedResponse,
+        model: usedModel,
+        framework: 'VERA',
+        createdBy: session.user.id,
+      },
+    });
+
     return NextResponse.json({
+      id: saved.id,
       response: generatedResponse,
       model: usedModel,
       framework: 'VERA',
       tokensUsed: totalTokens,
+      createdAt: saved.createdAt,
     });
   } catch (error) {
     console.error('[Generate Response] Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Failed to generate response';
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * GET /api/portal/reviews/generate-response
+ * Fetch existing generated responses for a review
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const reviewId = searchParams.get('reviewId');
+    const tenantId = searchParams.get('tenantId');
+
+    if (!reviewId || !tenantId) {
+      return NextResponse.json({ error: 'reviewId and tenantId are required' }, { status: 400 });
+    }
+
+    if (!hasTenantAccess(session.user, tenantId)) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    const responses = await db.generatedResponse.findMany({
+      where: {
+        reviewId,
+        review: { tenantId },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+
+    if (responses.length === 0) {
+      return NextResponse.json({ response: null });
+    }
+
+    const latest = responses[0];
+    return NextResponse.json({
+      id: latest.id,
+      response: latest.content,
+      model: latest.model,
+      framework: latest.framework,
+      createdAt: latest.createdAt,
+    });
+  } catch (error) {
+    console.error('[Get Generated Response] Error:', error);
+    return NextResponse.json({ error: 'Failed to fetch response' }, { status: 500 });
   }
 }

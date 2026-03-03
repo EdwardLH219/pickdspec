@@ -485,8 +485,9 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  reviewThemes ReviewTheme[]
-  reviewScores ReviewScore[]
+  reviewThemes       ReviewTheme[]
+  reviewScores       ReviewScore[]
+  generatedResponses GeneratedResponse[]
 
   @@unique([connectorId, externalReviewId]) // For external connector reviews
   @@index([tenantId, reviewDate])
@@ -495,6 +496,19 @@ model Review {
   @@index([contentHash])
   @@index([detectedLanguage])
   @@index([tillReviewSubmissionId])
+}
+
+model GeneratedResponse {
+  id        String   @id @default(uuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  content   String
+  model     String
+  framework String   @default("VERA")
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
 }
 
 model Theme {
