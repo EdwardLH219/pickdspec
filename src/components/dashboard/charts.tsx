@@ -968,7 +968,7 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
             )}
 
             {/* Generate Response Section */}
-            {selectedReview && selectedReview.rating !== null && selectedReview.rating <= 3 && tenantId && (
+            {selectedReview && tenantId && (
               <div className="pt-2 border-t">
                 {isLoadingResponse ? (
                   <div className="flex items-center justify-center py-3 gap-2 text-sm text-muted-foreground">

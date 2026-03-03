@@ -1172,7 +1172,7 @@ export default function ReportsPage() {
               </div>
 
               {/* Generate Response Section */}
-              {selectedReview.rating !== null && selectedReview.rating <= 3 && selectedTenantId && (
+              {selectedTenantId && (
                 <div className="pt-2 border-t">
                   {isLoadingResponse ? (
                     <div className="flex items-center justify-center py-3 gap-2 text-sm text-muted-foreground">

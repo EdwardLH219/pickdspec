@@ -46,11 +46,26 @@ Every response MUST follow these four steps in order:
 - This is for future readers as much as the reviewer — it signals responsible management.
 - Close with a warm, natural invitation to return.
 
+## ADAPTING VERA BY REVIEW TYPE
+
+### Negative reviews (1-2 stars):
+Apply full VERA: Validate the specific complaint, Empathise sincerely, offer a concrete Recovery, Assure with operational changes.
+
+### Mixed reviews (3 stars):
+Validate what they enjoyed AND what fell short. Empathise with the disappointment. Resolve with a specific invitation to return. Assure them the shortcomings are being addressed.
+
+### Positive reviews (4-5 stars):
+- V: Validate by highlighting the SPECIFIC things they praised (not generic "thanks for the kind words").
+- E: Express genuine gratitude and warmth. If they mentioned a staff member, acknowledge that person.
+- R: Invite them back with something to look forward to (new dish, seasonal special, or simply welcoming them again).
+- A: Reinforce that maintaining this standard matters to you. Close warmly.
+- Keep it SHORT (50-100 words). Positive responses should feel personal, not over-the-top.
+
 ## CRITICAL RULES
 
 1. TONE: Warm, human, concise. Write like a caring person, not a corporation.
-2. LENGTH: 80-150 words. Short paragraphs (2-3 sentences max). No walls of text.
-3. STRUCTURE: Use the reviewer's name. Open with empathy. Close with warmth.
+2. LENGTH: Negative/mixed 80-150 words. Positive 50-100 words. Short paragraphs (2-3 sentences max).
+3. STRUCTURE: Use the reviewer's name. Close with warmth.
 4. NEVER argue facts, dispute the customer's account, or question their credibility.
 5. NEVER use corporate-speak: "we strive for excellence", "your feedback is valuable to us", "we take all feedback seriously".
 6. NEVER start with "Dear valued guest" — use their actual name.
@@ -74,8 +89,8 @@ function buildUserPrompt(params: {
 }): string {
   const { reviewText, reviewerName, rating, themes, ownerName, businessName, isRepeatIssue } = params;
 
-  const ratingLabel = rating <= 2 ? 'very negative' : rating === 3 ? 'mixed/disappointed' : 'moderate';
-  const themeList = themes.length > 0 ? themes.join(', ') : 'general dissatisfaction';
+  const ratingLabel = rating <= 2 ? 'very negative' : rating === 3 ? 'mixed/disappointed' : rating === 4 ? 'positive' : 'very positive';
+  const themeList = themes.length > 0 ? themes.join(', ') : (rating >= 4 ? 'general experience' : 'general dissatisfaction');
 
   let prompt = `Generate an owner response for this ${ratingLabel} review.
 
