@@ -7,6 +7,8 @@ import { getActiveParameterVersion } from '@/server/parameters/service';
 import { calculateTimeWeight, calculateSourceWeight, calculateEngagementWeight, calculateWeightedImpact } from '@/server/scoring/calculations';
 import { analyzeSentimentWithThemes, isUsingAIProvider } from '@/server/scoring/sentiment';
 
+export const maxDuration = 300;
+
 // Theme category values (matches Prisma enum)
 type ThemeCategoryValue = 'SERVICE' | 'PRODUCT' | 'CLEANLINESS' | 'VALUE' | 'AMBIANCE' | 'OTHER';
 type SourceTypeValue = 'GOOGLE' | 'HELLOPETER' | 'FACEBOOK' | 'TRIPADVISOR' | 'YELP' | 'ZOMATO' | 'OPENTABLE' | 'WEBSITE';

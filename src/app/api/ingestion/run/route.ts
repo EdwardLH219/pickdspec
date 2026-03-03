@@ -13,6 +13,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth, getTenantAccess } from '@/lib/auth/config';
 import { db } from '@/server/db';
+
+export const maxDuration = 120;
 import { startIngestion, isIngestionRunning } from '@/server/ingestion/ingestion-service';
 import { IngestionRunType } from '@prisma/client';
 import { logger } from '@/lib/logger';

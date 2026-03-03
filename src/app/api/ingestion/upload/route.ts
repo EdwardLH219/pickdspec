@@ -13,6 +13,8 @@ import { auth, getTenantAccess } from '@/lib/auth/config';
 import { db } from '@/server/db';
 import { startIngestion, isIngestionRunning } from '@/server/ingestion/ingestion-service';
 import { decryptJSON, isEncrypted } from '@/server/ingestion/encryption';
+
+export const maxDuration = 120;
 import { IngestionRunType } from '@prisma/client';
 import { logger } from '@/lib/logger';
 import type { ConnectorConfig } from '@/server/ingestion/types';

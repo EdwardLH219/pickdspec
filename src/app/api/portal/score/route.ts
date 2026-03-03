@@ -12,6 +12,8 @@ import { executeScoreRun } from '@/server/scoring/pipeline';
 import { extractThemesForTenant } from '@/server/scoring/theme-extractor';
 import { logger } from '@/lib/logger';
 
+export const maxDuration = 300;
+
 /**
  * POST /api/portal/score
  * Trigger theme extraction + score run for a tenant

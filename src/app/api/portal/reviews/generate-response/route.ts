@@ -13,6 +13,8 @@ import { hasTenantAccess } from '@/server/auth/rbac';
 import { db } from '@/server/db';
 import OpenAI from 'openai';
 
+export const maxDuration = 60;
+
 const VERA_SYSTEM_PROMPT = `You are an expert hospitality review response consultant. Your role is to generate the best possible owner response to a customer review, strictly following the VERA Framework.
 
 ## THE VERA FRAMEWORK

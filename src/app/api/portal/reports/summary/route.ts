@@ -12,6 +12,8 @@ import { hasTenantAccess } from '@/server/auth/rbac';
 import OpenAI from 'openai';
 import { CustomerSummaryPeriod } from '@prisma/client';
 
+export const maxDuration = 120;
+
 // ============================================================
 // CONFIGURATION
 // ============================================================
