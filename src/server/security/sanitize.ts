@@ -14,9 +14,6 @@ const HTML_ENTITIES: Record<string, string> = {
   '>': '&gt;',
   '"': '&quot;',
   "'": '&#x27;',
-  '/': '&#x2F;',
-  '`': '&#x60;',
-  '=': '&#x3D;',
 };
 
 /**
@@ -28,7 +25,7 @@ const HTML_ENTITIES: Record<string, string> = {
 export function escapeHtml(text: string | null | undefined): string {
   if (!text) return '';
   
-  return text.replace(/[&<>"'`=/]/g, (char) => HTML_ENTITIES[char] || char);
+  return text.replace(/[&<>"']/g, (char) => HTML_ENTITIES[char] || char);
 }
 
 /**
