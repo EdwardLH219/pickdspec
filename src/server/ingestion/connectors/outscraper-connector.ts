@@ -451,13 +451,15 @@ function normalizeHtmlContent(content: string): string {
   
   let normalized = content;
   
-  // First decode HTML entities
+  // Decode HTML entities (both named and hex/decimal forms)
   normalized = normalized
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&#x2F;/gi, '/')
     .replace(/&nbsp;/g, ' ');
   
   // Convert <br> tags to newlines (handles <br>, <br/>, <br />)

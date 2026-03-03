@@ -9,23 +9,19 @@
  * HTML entities to escape
  */
 const HTML_ENTITIES: Record<string, string> = {
-  '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#x27;',
 };
 
 /**
- * Escape HTML special characters to prevent XSS
- * 
- * @param text - Raw text to sanitize
- * @returns Escaped text safe for HTML display
+ * Escape HTML angle brackets to prevent tag injection.
+ * Other characters (&, ", ') are safe in React text nodes
+ * and escaping them causes visible &#x27; artifacts.
  */
 export function escapeHtml(text: string | null | undefined): string {
   if (!text) return '';
   
-  return text.replace(/[&<>"']/g, (char) => HTML_ENTITIES[char] || char);
+  return text.replace(/[<>]/g, (char) => HTML_ENTITIES[char] || char);
 }
 
 /**
