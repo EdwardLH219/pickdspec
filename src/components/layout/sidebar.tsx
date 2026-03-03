@@ -17,6 +17,7 @@ import {
   Shield,
   Database,
   Sparkles,
+  HeartHandshake,
 } from "lucide-react";
 
 const navItems = [
@@ -44,6 +45,11 @@ const navItems = [
     title: "Reports",
     href: "/reports",
     icon: FileText,
+  },
+  {
+    title: "Customer Service",
+    href: "/customer-service",
+    icon: HeartHandshake,
   },
   {
     title: "Account",
