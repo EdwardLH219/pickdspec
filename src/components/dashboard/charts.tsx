@@ -785,8 +785,8 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
           setCopied(false);
         }
       }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <span className="text-lg">{getSourceIcon(selectedReview?.sourceType ?? null)}</span>
               Review from {selectedReview?.authorName}
@@ -800,7 +800,7 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-4 pt-2 overflow-y-auto pr-2">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                 {selectedReview?.content}

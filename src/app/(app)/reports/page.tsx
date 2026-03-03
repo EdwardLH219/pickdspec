@@ -978,8 +978,8 @@ export default function ReportsPage() {
           setCopied(false);
         }
       }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Review Details</DialogTitle>
             <DialogDescription>
               {selectedReview?.source && formatSourceType(selectedReview.source)} • {selectedReview?.reviewDate && new Date(selectedReview.reviewDate).toLocaleDateString()}
@@ -987,7 +987,7 @@ export default function ReportsPage() {
           </DialogHeader>
           
           {selectedReview && (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto pr-2">
               <div className="flex items-center gap-4">
                 {renderStars(selectedReview.rating)}
                 {getSentimentBadge(selectedReview.sentiment)}
