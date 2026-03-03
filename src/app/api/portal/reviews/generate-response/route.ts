@@ -162,59 +162,58 @@ export async function POST(request: NextRequest) {
     });
 
     const client = new OpenAI({ apiKey });
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: VERA_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ];
 
-    console.log('[Generate Response] Calling GPT-5-mini for review:', reviewId);
-
-    const models = ['gpt-5-mini', 'gpt-4o-mini'];
     let generatedResponse: string | null = null;
-    let usedModel = models[0];
-    let usage: unknown = null;
+    let usedModel = 'gpt-5-mini';
+    let totalTokens = 0;
 
-    for (const model of models) {
-      usedModel = model;
-      console.log(`[Generate Response] Trying ${model} for review:`, reviewId);
+    // Try gpt-5-mini first
+    try {
+      console.log('[Generate Response] Trying gpt-5-mini for review:', reviewId);
+      const res = await client.chat.completions.create({
+        model: 'gpt-5-mini',
+        messages,
+        max_completion_tokens: 2000,
+      });
+      console.log('[Generate Response] gpt-5-mini finish:', res.choices[0]?.finish_reason, 'usage:', JSON.stringify(res.usage));
+      totalTokens = res.usage?.total_tokens ?? 0;
+      const content = res.choices[0]?.message?.content?.trim();
+      if (content && content.length > 10) {
+        generatedResponse = content;
+      }
+    } catch (err) {
+      console.error('[Generate Response] gpt-5-mini error:', err);
+    }
 
+    // Fallback to gpt-4o-mini
+    if (!generatedResponse) {
       try {
-        const createParams: Record<string, unknown> = {
-          model,
-          messages: [
-            { role: 'system', content: VERA_SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
-          ],
-        };
-
-        if (model === 'gpt-5-mini') {
-          createParams.max_completion_tokens = 2000;
-        } else {
-          createParams.max_tokens = 500;
-          createParams.temperature = 0.7;
-        }
-
-        const response = await client.chat.completions.create(createParams as unknown as Parameters<typeof client.chat.completions.create>[0]);
-
-        console.log(`[Generate Response] ${model} finish reason:`, response.choices[0]?.finish_reason);
-        console.log(`[Generate Response] ${model} usage:`, JSON.stringify(response.usage));
-
-        const content = response.choices[0]?.message?.content?.trim();
-        usage = response.usage;
-
+        console.log('[Generate Response] Falling back to gpt-4o-mini for review:', reviewId);
+        usedModel = 'gpt-4o-mini';
+        const res = await client.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages,
+          max_tokens: 500,
+          temperature: 0.7,
+        });
+        console.log('[Generate Response] gpt-4o-mini finish:', res.choices[0]?.finish_reason);
+        totalTokens = res.usage?.total_tokens ?? 0;
+        const content = res.choices[0]?.message?.content?.trim();
         if (content && content.length > 10) {
           generatedResponse = content;
-          break;
         }
-
-        console.warn(`[Generate Response] ${model} returned empty/short content, trying next model...`);
-      } catch (aiError) {
-        console.error(`[Generate Response] ${model} error:`, aiError);
-        if (model === models[models.length - 1]) {
-          const aiMessage = aiError instanceof Error ? aiError.message : 'AI service error';
-          return NextResponse.json({ error: `AI service error: ${aiMessage}` }, { status: 502 });
-        }
+      } catch (err) {
+        console.error('[Generate Response] gpt-4o-mini error:', err);
+        const msg = err instanceof Error ? err.message : 'AI service error';
+        return NextResponse.json({ error: `AI service error: ${msg}` }, { status: 502 });
       }
     }
 
     if (!generatedResponse) {
-      console.error('[Generate Response] All models returned empty responses');
       return NextResponse.json({ error: 'AI returned an empty response. Please try again.' }, { status: 500 });
     }
 
@@ -222,7 +221,7 @@ export async function POST(request: NextRequest) {
       response: generatedResponse,
       model: usedModel,
       framework: 'VERA',
-      tokensUsed: (usage as { total_tokens?: number })?.total_tokens ?? 0,
+      tokensUsed: totalTokens,
     });
   } catch (error) {
     console.error('[Generate Response] Unexpected error:', error);
