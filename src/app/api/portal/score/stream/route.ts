@@ -29,17 +29,16 @@ export async function POST(request: NextRequest) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const { tenantId } = await request.json();
+  const body = await request.json();
+  const { tenantId, forceRescore } = body;
   if (!tenantId) {
     return new Response('Tenant ID required', { status: 400 });
   }
 
-  // Check tenant access - pass the full user object
   if (!hasTenantAccess(session.user, tenantId)) {
     return new Response('Forbidden', { status: 403 });
   }
 
-  // Create a streaming response
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest) {
       try {
         send({ type: 'start', message: '🚀 Starting scoring pipeline...' });
 
-        // Check AI provider status
         const usingAI = isUsingAIProvider();
         send({ 
           type: 'info', 
@@ -70,7 +68,6 @@ export async function POST(request: NextRequest) {
             : '📝 Using keyword-based analysis (set OPENAI_API_KEY for AI)'
         });
 
-        // Get parameters (with fallback to defaults)
         const paramVersion = await getActiveParameterVersion();
         if (!paramVersion) {
           send({ type: 'error', message: '❌ No active parameter set found. Please configure parameters first.' });
@@ -80,18 +77,16 @@ export async function POST(request: NextRequest) {
         const params = paramVersion.parameters;
         send({ type: 'info', message: `📋 Loaded parameter set: ${paramVersion.metadata.name || 'Default'}` });
 
-        // Fetch reviews first to determine period
+        // Fetch all reviews
         const reviews = await db.review.findMany({
           where: { tenantId },
           include: {
             reviewThemes: true,
-            connector: {
-              select: { sourceType: true },
-            },
+            connector: { select: { sourceType: true } },
           },
           orderBy: { reviewDate: 'desc' },
         });
-        send({ type: 'info', message: `📥 Found ${reviews.length} reviews to process` });
+        send({ type: 'info', message: `📥 Found ${reviews.length} total reviews` });
 
         if (reviews.length === 0) {
           send({ type: 'complete', message: '✅ No reviews to process', results: { reviewsProcessed: 0, themesExtracted: 0, themesProcessed: 0 } });
@@ -99,18 +94,29 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Calculate period from reviews
-        const reviewDates = reviews
-          .filter(r => r.reviewDate)
-          .map(r => r.reviewDate!.getTime());
-        const periodStart = reviewDates.length > 0 
-          ? new Date(Math.min(...reviewDates)) 
-          : new Date();
-        const periodEnd = reviewDates.length > 0 
-          ? new Date(Math.max(...reviewDates)) 
-          : new Date();
+        // ---- Incremental scoring: find reviews that already have scores ----
+        const existingScores = forceRescore ? [] : await db.reviewScore.findMany({
+          where: {
+            review: { tenantId },
+            scoreRun: { status: 'COMPLETED' },
+          },
+          orderBy: { createdAt: 'desc' },
+          distinct: ['reviewId'],
+          select: {
+            reviewId: true,
+            baseSentiment: true,
+            weightedImpact: true,
+          },
+        });
 
-        // Create a new ScoreRun record
+        const cachedScoreMap = new Map(
+          existingScores.map(s => [s.reviewId, { sentiment: s.baseSentiment, weightedImpact: s.weightedImpact }])
+        );
+
+        const reviewDates = reviews.filter(r => r.reviewDate).map(r => r.reviewDate!.getTime());
+        const periodStart = reviewDates.length > 0 ? new Date(Math.min(...reviewDates)) : new Date();
+        const periodEnd = reviewDates.length > 0 ? new Date(Math.max(...reviewDates)) : new Date();
+
         const scoreRun = await db.scoreRun.create({
           data: {
             tenantId,
@@ -124,25 +130,24 @@ export async function POST(request: NextRequest) {
             startedAt: new Date(),
           },
         });
-        send({ type: 'info', message: `🆔 Created score run: ${scoreRun.id.slice(0, 8)}... (${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()})` });
+        send({ type: 'info', message: `🆔 Score run: ${scoreRun.id.slice(0, 8)}... (${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()})` });
 
-        // Phase 1: Theme Extraction
+        // Phase 1: Theme Extraction (only for reviews without themes)
         send({ type: 'phase', phase: 1, message: '🏷️ Phase 1: Extracting themes from reviews...' });
         
         let themesExtracted = 0;
         const themeMap = new Map<string, string>();
         
-        // Pre-fetch existing themes (themes are organization-wide, not tenant-specific)
         const existingThemes = await db.theme.findMany({ where: { isActive: true } });
         for (const theme of existingThemes) {
           themeMap.set(theme.name, theme.id);
         }
 
-        for (let i = 0; i < reviews.length; i++) {
-          const review = reviews[i];
-          
-          // Skip if already has themes or no content
-          if (review.reviewThemes.length > 0 || !review.content) continue;
+        const reviewsNeedingThemes = reviews.filter(r => r.reviewThemes.length === 0 && r.content);
+        send({ type: 'info', message: `🏷️ ${reviewsNeedingThemes.length} reviews need theme extraction (${reviews.length - reviewsNeedingThemes.length} already tagged)` });
+
+        for (let i = 0; i < reviewsNeedingThemes.length; i++) {
+          const review = reviewsNeedingThemes[i];
 
           const matches = extractThemesFromContent(review.content);
           
@@ -176,37 +181,51 @@ export async function POST(request: NextRequest) {
             themesExtracted++;
           }
 
-          // Log every 5 reviews or on theme detection
-          if (matches.length > 0 || i % 5 === 0) {
+          if (matches.length > 0 || i % 10 === 0) {
             send({ 
               type: 'progress', 
               phase: 1,
               current: i + 1, 
-              total: reviews.length,
+              total: reviewsNeedingThemes.length,
               message: matches.length > 0 
                 ? `📌 Review ${i + 1}: Found ${matches.length} themes (${matches.map(m => m.themeName).join(', ')})`
-                : `📄 Processing review ${i + 1}/${reviews.length}...`
+                : `📄 Processing review ${i + 1}/${reviewsNeedingThemes.length}...`
             });
           }
         }
 
         send({ type: 'phase_complete', phase: 1, message: `✅ Theme extraction complete: ${themesExtracted} theme tags created` });
 
-        // Phase 2: Review Scoring (with parallel processing for speed)
-        send({ type: 'phase', phase: 2, message: '🧮 Phase 2: Calculating review scores (parallel processing)...' });
+        // Phase 2: Review Scoring (incremental — only score new reviews via AI)
+        send({ type: 'phase', phase: 2, message: '🧮 Phase 2: Calculating review scores...' });
 
         const asOfDate = new Date();
         const reviewScores: Array<{ reviewId: string; weightedImpact: number; sentiment: number }> = [];
         
-        // Filter reviews with content
-        const reviewsToProcess = reviews.filter(r => r.content);
-        send({ type: 'info', message: `📊 Processing ${reviewsToProcess.length} reviews with content (${reviews.length - reviewsToProcess.length} skipped)` });
+        const reviewsWithContent = reviews.filter(r => r.content);
+        const newReviews = reviewsWithContent.filter(r => !cachedScoreMap.has(r.id));
+        const cachedReviews = reviewsWithContent.filter(r => cachedScoreMap.has(r.id));
 
-        // Process in parallel batches of 10 for speed
+        // Reuse cached scores immediately
+        for (const review of cachedReviews) {
+          const cached = cachedScoreMap.get(review.id)!;
+          reviewScores.push({
+            reviewId: review.id,
+            weightedImpact: cached.weightedImpact,
+            sentiment: cached.sentiment,
+          });
+        }
+
+        if (cachedReviews.length > 0) {
+          send({ type: 'info', message: `⚡ Reused ${cachedReviews.length} cached scores from previous runs` });
+        }
+        send({ type: 'info', message: `🆕 ${newReviews.length} new reviews need AI scoring` });
+
+        // Process only new reviews in batches
         const BATCH_SIZE = 10;
         const batches = [];
-        for (let i = 0; i < reviewsToProcess.length; i += BATCH_SIZE) {
-          batches.push(reviewsToProcess.slice(i, i + BATCH_SIZE));
+        for (let i = 0; i < newReviews.length; i += BATCH_SIZE) {
+          batches.push(newReviews.slice(i, i + BATCH_SIZE));
         }
 
         let processedCount = 0;
@@ -214,11 +233,9 @@ export async function POST(request: NextRequest) {
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
           const batch = batches[batchIndex];
           
-          // Process batch in parallel
           const batchResults = await Promise.all(
             batch.map(async (review) => {
               try {
-                // Calculate sentiment (with themes if using AI)
                 const sentimentResult = await analyzeSentimentWithThemes({
                   content: review.content,
                   language: review.detectedLanguage ?? undefined,
@@ -228,14 +245,12 @@ export async function POST(request: NextRequest) {
                 let baseSentiment = sentimentResult.score;
                 const aiThemes = sentimentResult.themes || [];
                 
-                // Blend with star rating
                 if (params.sentiment.use_star_rating && review.rating !== null) {
                   const ratingNormalized = (review.rating - 3) / 2;
                   const blendWeight = params.sentiment.star_rating_blend_weight ?? 0.3;
                   baseSentiment = sentimentResult.score * (1 - blendWeight) + ratingNormalized * blendWeight;
                 }
 
-                // Calculate weights (with null safety)
                 const sourceType = review.connector?.sourceType ?? 'WEBSITE';
                 const reviewDate = review.reviewDate ?? new Date();
                 const timeWeight = calculateTimeWeight(reviewDate, asOfDate, params.time.review_half_life_days);
@@ -248,13 +263,12 @@ export async function POST(request: NextRequest) {
                   params
                 );
 
-                // Calculate final weighted impact
                 const W_r = calculateWeightedImpact(
                   baseSentiment,
                   timeWeight.value,
                   sourceWeight.value,
                   engagementWeight.value,
-                  1.0 // confidence weight simplified
+                  1.0
                 );
 
                 return {
@@ -262,8 +276,6 @@ export async function POST(request: NextRequest) {
                   weightedImpact: W_r,
                   sentiment: baseSentiment,
                   aiThemes,
-                  timeWeight: timeWeight.value,
-                  sourceWeight: sourceWeight.value,
                 };
               } catch (error) {
                 console.error('Error processing review:', error);
@@ -272,7 +284,6 @@ export async function POST(request: NextRequest) {
             })
           );
 
-          // Collect successful results
           for (const result of batchResults) {
             if (result) {
               reviewScores.push({
@@ -285,7 +296,6 @@ export async function POST(request: NextRequest) {
 
           processedCount += batch.length;
           
-          // Log batch progress
           const sampleResult = batchResults.find(r => r !== null);
           const themeInfo = sampleResult?.aiThemes?.length 
             ? ` [AI: ${sampleResult.aiThemes.map(t => t.name).join(', ')}]` 
@@ -295,22 +305,18 @@ export async function POST(request: NextRequest) {
             type: 'calculation',
             phase: 2,
             current: processedCount,
-            total: reviewsToProcess.length,
-            message: `⚖️ Batch ${batchIndex + 1}/${batches.length}: Processed ${batch.length} reviews (${processedCount}/${reviewsToProcess.length})${themeInfo}`
+            total: newReviews.length,
+            message: `⚖️ Batch ${batchIndex + 1}/${batches.length}: Scored ${batch.length} new reviews (${processedCount}/${newReviews.length})${themeInfo}`
           });
         }
 
-        send({ type: 'phase_complete', phase: 2, message: `✅ Review scoring complete: ${reviewScores.length} reviews scored` });
+        send({ type: 'phase_complete', phase: 2, message: `✅ Scoring complete: ${newReviews.length} new + ${cachedReviews.length} cached = ${reviewScores.length} total` });
 
-        // Persist ReviewScore records to database (batch operation for speed)
+        // Persist all scores for this run
         send({ type: 'info', message: '💾 Saving review scores to database...' });
         
-        // Delete existing scores for this run first, then bulk create
-        await db.reviewScore.deleteMany({
-          where: { scoreRunId: scoreRun.id }
-        });
+        await db.reviewScore.deleteMany({ where: { scoreRunId: scoreRun.id } });
         
-        // Batch create all scores at once
         const scoreData = reviewScores.map(rs => ({
           reviewId: rs.reviewId,
           scoreRunId: scoreRun.id,
@@ -323,7 +329,6 @@ export async function POST(request: NextRequest) {
           components: { sentiment: rs.sentiment, impact: rs.weightedImpact },
         }));
         
-        // Create in batches of 100 to avoid query size limits
         const SCORE_BATCH_SIZE = 100;
         let savedScores = 0;
         for (let i = 0; i < scoreData.length; i += SCORE_BATCH_SIZE) {
