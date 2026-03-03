@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
           createParams.temperature = 0.7;
         }
 
-        const response = await client.chat.completions.create(createParams as Parameters<typeof client.chat.completions.create>[0]);
+        const response = await client.chat.completions.create(createParams as unknown as Parameters<typeof client.chat.completions.create>[0]);
 
         console.log(`[Generate Response] ${model} finish reason:`, response.choices[0]?.finish_reason);
         console.log(`[Generate Response] ${model} usage:`, JSON.stringify(response.usage));
