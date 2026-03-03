@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[Generate Response] Calling GPT-5-mini for review:', reviewId);
 
-    const models = ['gpt-5-mini', 'gpt-4o-mini'] as const;
+    const models = ['gpt-5-mini', 'gpt-4o-mini'];
     let generatedResponse: string | null = null;
     let usedModel = models[0];
     let usage: unknown = null;
