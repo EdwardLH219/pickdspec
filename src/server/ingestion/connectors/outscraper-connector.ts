@@ -443,6 +443,40 @@ function safeParseTimestamp(timestamp: number, dateString?: string | null): Date
 }
 
 /**
+ * Normalize HTML content - decode entities and convert line breaks
+ * Handles both HTML entities (&lt;br&gt;) and actual tags (<br>)
+ */
+function normalizeHtmlContent(content: string): string {
+  if (!content) return content;
+  
+  let normalized = content;
+  
+  // First decode HTML entities
+  normalized = normalized
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+  
+  // Convert <br> tags to newlines (handles <br>, <br/>, <br />)
+  normalized = normalized.replace(/<br\s*\/?>/gi, '\n');
+  
+  // Remove other common HTML tags that might slip through
+  normalized = normalized.replace(/<\/?(?:p|div|span)[^>]*>/gi, '\n');
+  
+  // Clean up excessive whitespace while preserving paragraph structure
+  normalized = normalized
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  
+  return normalized;
+}
+
+/**
  * Transform a Booking.com review to normalized format
  */
 function transformBookingReview(review: BookingReview, index: number): NormalizedReview {
@@ -462,8 +496,8 @@ function transformBookingReview(review: BookingReview, index: number): Normalize
     content = parts.join(' | ') || '[Rating only - no text content]';
   }
   
-  // Clean up HTML line breaks
-  content = content.replace(/<br\s*\/?>/gi, '\n').trim();
+  // Normalize HTML entities and line breaks
+  content = normalizeHtmlContent(content);
   
   return {
     externalId: review.review_id,
@@ -472,7 +506,7 @@ function transformBookingReview(review: BookingReview, index: number): Normalize
     authorName: review.author,
     authorId: review.author_id,
     reviewDate,
-    responseText: review.owner_answer || undefined,
+    responseText: review.owner_answer ? normalizeHtmlContent(review.owner_answer) : undefined,
     responseDate: undefined,
     likesCount: 0,
     sourceType: SourceType.BOOKING,
@@ -580,6 +614,9 @@ function transformReview(
     content = '[Rating only - no text content]';
   }
   
+  // Normalize HTML entities and line breaks
+  content = normalizeHtmlContent(content);
+  
   return {
     externalId: review.review_id,
     rating: review.review_rating,
@@ -587,7 +624,7 @@ function transformReview(
     authorName: review.author_title,
     authorId: review.author_id,
     reviewDate,
-    responseText: review.owner_answer || undefined,
+    responseText: review.owner_answer ? normalizeHtmlContent(review.owner_answer) : undefined,
     responseDate,
     likesCount: review.review_likes || 0,
     rawData: {

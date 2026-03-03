@@ -65,6 +65,13 @@ export function sanitizeReviewContent(content: string | null | undefined): strin
   // Remove iframe tags
   sanitized = sanitized.replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
   
+  // Convert <br> tags to newlines BEFORE escaping
+  sanitized = sanitized.replace(/<br\s*\/?>/gi, '\n');
+  
+  // Remove other common HTML tags (p, div, span) converting to newlines
+  sanitized = sanitized.replace(/<\/?(?:p|div)[^>]*>/gi, '\n');
+  sanitized = sanitized.replace(/<\/?span[^>]*>/gi, '');
+  
   // Escape remaining HTML entities
   sanitized = escapeHtml(sanitized);
   
