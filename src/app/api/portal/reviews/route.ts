@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       likesCount: r.likesCount,
       repliesCount: r.repliesCount,
       helpfulCount: r.helpfulCount,
-      responseText: r.responseText,
+      responseText: sanitizeReviewContent(r.responseText),
       hasGeneratedResponse: r._count.generatedResponses > 0,
     }));
 
