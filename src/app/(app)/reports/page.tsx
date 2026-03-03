@@ -147,9 +147,14 @@ export default function ReportsPage() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [sentimentFilter, setSentimentFilter] = useState("all");
-  const [themeFilter, setThemeFilter] = useState<string | null>(null);
-  const [themeName, setThemeName] = useState<string | null>(null);
+  const initialSentiment = searchParams.get('sentiment');
+  const initialThemeId = searchParams.get('themeId');
+  const initialThemeName = searchParams.get('themeName');
+  const [sentimentFilter, setSentimentFilter] = useState(
+    initialSentiment && ['positive', 'neutral', 'negative', 'non-positive'].includes(initialSentiment) ? initialSentiment : "all"
+  );
+  const [themeFilter, setThemeFilter] = useState<string | null>(initialThemeId || null);
+  const [themeName, setThemeName] = useState<string | null>(initialThemeName || null);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -206,16 +211,16 @@ export default function ReportsPage() {
     }
   };
   
-  // Initialize filters from URL params
+  // Sync filters if URL params change after initial load
   useEffect(() => {
     const themeId = searchParams.get('themeId');
     const theme = searchParams.get('themeName');
     const sentiment = searchParams.get('sentiment');
-    if (themeId) {
+    if (themeId && themeId !== themeFilter) {
       setThemeFilter(themeId);
       setThemeName(theme);
     }
-    if (sentiment && ['positive', 'neutral', 'negative', 'non-positive'].includes(sentiment)) {
+    if (sentiment && ['positive', 'neutral', 'negative', 'non-positive'].includes(sentiment) && sentiment !== sentimentFilter) {
       setSentimentFilter(sentiment);
     }
   }, [searchParams]);
@@ -391,14 +396,14 @@ export default function ReportsPage() {
     }
   };
 
-  // Fetch data when tenant or theme filter changes
+  // Fetch data when tenant or filter changes
   useEffect(() => {
     if (selectedTenantId) {
       fetchReviews();
       fetchThemes();
       fetchSummaries();
     }
-  }, [selectedTenantId, themeFilter]);
+  }, [selectedTenantId, themeFilter, sentimentFilter, sourceFilter]);
 
   // CSV Export
   const exportCSV = async () => {
