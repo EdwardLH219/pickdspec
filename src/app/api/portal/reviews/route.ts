@@ -100,6 +100,10 @@ export async function GET(request: NextRequest) {
     // then filter by sentiment score (which lives in reviewScores, not directly queryable)
     const isSentimentFiltered = !!sentiment;
 
+    // When sentiment filtering, fetch all so we can filter then paginate
+    const queryTake = (isSentimentFiltered || format === 'csv') ? 10000 : limit;
+    const querySkip = (isSentimentFiltered || format === 'csv') ? 0 : offset;
+
     const reviews = await db.review.findMany({
       where,
       include: {
@@ -120,9 +124,8 @@ export async function GET(request: NextRequest) {
         _count: { select: { generatedResponses: true } },
       },
       orderBy: { reviewDate: 'desc' },
-      ...(isSentimentFiltered
-        ? { take: format === 'csv' ? 10000 : 10000 }
-        : { take: format === 'csv' ? 10000 : limit, skip: format === 'csv' ? 0 : offset }),
+      take: queryTake,
+      skip: querySkip,
     });
 
     // Filter by sentiment if specified (post-query since it's from reviewScores)
