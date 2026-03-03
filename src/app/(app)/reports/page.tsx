@@ -137,7 +137,7 @@ const PERIOD_LABELS: Record<SummaryPeriod, { title: string; description: string 
 };
 
 export default function ReportsPage() {
-  const { selectedTenantId, selectedTenant, isLoading: branchLoading, getDateRange } = useBranch();
+  const { selectedTenantId, selectedTenant, isLoading: branchLoading, dateRange, getDateRange } = useBranch();
   const searchParams = useSearchParams();
   
   // Review Explorer state
@@ -271,6 +271,10 @@ export default function ReportsPage() {
       if (searchQuery) params.set("search", searchQuery);
       if (themeFilter) params.set("themeId", themeFilter);
 
+      const { start, end } = getDateRange();
+      params.set("dateFrom", start.toISOString());
+      params.set("dateTo", end.toISOString());
+
       const res = await fetch(`/api/portal/reviews?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -403,7 +407,7 @@ export default function ReportsPage() {
       fetchThemes();
       fetchSummaries();
     }
-  }, [selectedTenantId, themeFilter, sentimentFilter, sourceFilter]);
+  }, [selectedTenantId, themeFilter, sentimentFilter, sourceFilter, dateRange]);
 
   // CSV Export
   const exportCSV = async () => {

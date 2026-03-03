@@ -348,17 +348,19 @@ export async function POST(request: NextRequest) {
           include: { theme: true, review: true },
         });
 
-        // Group by theme
-        const themeGroups = new Map<string, { name: string; impacts: number[] }>();
+        // Group by theme — track both impacts (for score calculation) and theme-specific sentiment (for counts)
+        const themeGroups = new Map<string, { name: string; impacts: number[]; sentiments: string[] }>();
         
         for (const rt of reviewThemes) {
           const scoreData = reviewScores.find(rs => rs.reviewId === rt.reviewId);
           if (!scoreData) continue;
 
           if (!themeGroups.has(rt.themeId)) {
-            themeGroups.set(rt.themeId, { name: rt.theme.name, impacts: [] });
+            themeGroups.set(rt.themeId, { name: rt.theme.name, impacts: [], sentiments: [] });
           }
-          themeGroups.get(rt.themeId)!.impacts.push(scoreData.weightedImpact);
+          const group = themeGroups.get(rt.themeId)!;
+          group.impacts.push(scoreData.weightedImpact);
+          group.sentiments.push(rt.sentiment);
         }
 
         // Calculate theme scores and persist them
@@ -372,11 +374,12 @@ export async function POST(request: NextRequest) {
           const sumAbsWr = data.impacts.reduce((a, b) => a + Math.abs(b), 0);
           const themeSentiment = sumAbsWr > 0 ? sumWr / sumAbsWr : 0;
           
-          // Count sentiment types from the impacts
-          const positiveCount = data.impacts.filter(i => i > 0).length;
-          const negativeCount = data.impacts.filter(i => i < 0).length;
-          const neutralCount = data.impacts.filter(i => i === 0).length;
-          const mentionCount = data.impacts.length;
+          // Count sentiment using theme-specific sentiment from reviewThemes
+          // This ensures counts match what the reports page filters on
+          const positiveCount = data.sentiments.filter(s => s === 'POSITIVE').length;
+          const negativeCount = data.sentiments.filter(s => s === 'NEGATIVE').length;
+          const neutralCount = data.sentiments.filter(s => s === 'NEUTRAL').length;
+          const mentionCount = data.sentiments.length;
           
           // Calculate negative ratio for volume adjustment
           const negativeRatio = mentionCount > 0 ? negativeCount / mentionCount : 0;
