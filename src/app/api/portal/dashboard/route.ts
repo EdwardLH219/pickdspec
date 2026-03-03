@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
 import { hasTenantAccess } from '@/server/auth/rbac';
 import { db } from '@/server/db';
+import { sanitizeReviewContent } from '@/server/security/sanitize';
 
 /**
  * Get human-readable display name for source type
@@ -291,17 +292,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Format worst reviews for frontend
+    // Format worst reviews for frontend (send full content for modal view)
     const formattedWorstReviews = worstReviews.map(review => ({
       id: review.id,
-      content: review.content.length > 200 
-        ? review.content.substring(0, 200) + '...' 
-        : review.content,
+      content: sanitizeReviewContent(review.content), // Full content, sanitized
       rating: review.rating,
       reviewDate: review.reviewDate,
       authorName: review.authorName || 'Anonymous',
       sourceType: review.sourceType || review.connector?.sourceType || null,
-      responseText: review.responseText,
+      responseText: review.responseText ? sanitizeReviewContent(review.responseText) : null,
       themes: review.reviewThemes
         .filter(rt => rt.sentiment === 'NEGATIVE')
         .map(rt => rt.theme.name)

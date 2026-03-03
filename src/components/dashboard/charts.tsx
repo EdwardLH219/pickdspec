@@ -790,7 +790,7 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-2 max-h-[60vh] overflow-y-auto">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                 {selectedReview?.content}
@@ -815,12 +815,9 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-2">Owner Response</p>
                 <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-400">
-                  <p 
-                    className="text-sm text-gray-700 leading-relaxed"
-                    dangerouslySetInnerHTML={{ 
-                      __html: selectedReview.responseText.replace(/<br\s*\/?>/gi, '<br />') 
-                    }}
-                  />
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedReview.responseText}
+                  </p>
                 </div>
               </div>
             )}
