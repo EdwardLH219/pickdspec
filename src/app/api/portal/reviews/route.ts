@@ -96,7 +96,10 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get reviews
+    // When sentiment filter is active, fetch all matching reviews first
+    // then filter by sentiment score (which lives in reviewScores, not directly queryable)
+    const isSentimentFiltered = !!sentiment;
+
     const reviews = await db.review.findMany({
       where,
       include: {
@@ -117,8 +120,9 @@ export async function GET(request: NextRequest) {
         _count: { select: { generatedResponses: true } },
       },
       orderBy: { reviewDate: 'desc' },
-      take: format === 'csv' ? 10000 : limit, // Higher limit for CSV export
-      skip: format === 'csv' ? 0 : offset,
+      ...(isSentimentFiltered
+        ? { take: format === 'csv' ? 10000 : 10000 }
+        : { take: format === 'csv' ? 10000 : limit, skip: format === 'csv' ? 0 : offset }),
     });
 
     // Filter by sentiment if specified (post-query since it's from reviewScores)
@@ -129,9 +133,15 @@ export async function GET(request: NextRequest) {
         if (sentiment === 'positive') return score > 0.3;
         if (sentiment === 'negative') return score < -0.3;
         if (sentiment === 'neutral') return score >= -0.3 && score <= 0.3;
-        if (sentiment === 'non-positive') return score <= 0.3; // negative + neutral
+        if (sentiment === 'non-positive') return score <= 0.3;
         return true;
       });
+    }
+
+    // Apply pagination after sentiment filtering
+    const totalAfterFilter = filteredReviews.length;
+    if (isSentimentFiltered && format !== 'csv') {
+      filteredReviews = filteredReviews.slice(offset, offset + limit);
     }
 
     // Format reviews with XSS sanitization
@@ -196,8 +206,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get total count
-    const total = await db.review.count({ where });
+    // Total count: use filtered count when sentiment is active, otherwise DB count
+    const total = isSentimentFiltered ? totalAfterFilter : await db.review.count({ where });
 
     return NextResponse.json({
       reviews: formattedReviews,
