@@ -114,6 +114,7 @@ export async function GET(request: NextRequest) {
             weightedImpact: true,
           },
         },
+        _count: { select: { generatedResponses: true } },
       },
       orderBy: { reviewDate: 'desc' },
       take: format === 'csv' ? 10000 : limit, // Higher limit for CSV export
@@ -156,6 +157,7 @@ export async function GET(request: NextRequest) {
       repliesCount: r.repliesCount,
       helpfulCount: r.helpfulCount,
       responseText: r.responseText,
+      hasGeneratedResponse: r._count.generatedResponses > 0,
     }));
 
     // CSV export

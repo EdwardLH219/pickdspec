@@ -39,7 +39,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Eye, MessageSquareReply, Sparkles, Copy, Check, Loader2 } from 'lucide-react';
+import { Eye, MessageSquareReply, Sparkles, Copy, Check, Loader2, ThumbsUp, ThumbsDown, Gauge } from 'lucide-react';
 
 // Color palette
 const COLORS = {
@@ -636,6 +636,7 @@ interface WorstReview {
   sourceType: string | null;
   themes: string[];
   responseText?: string | null;
+  hasGeneratedResponse?: boolean;
 }
 
 interface WorstReviewsCardProps {
@@ -649,6 +650,37 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoadingResponse, setIsLoadingResponse] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [veraRating, setVeraRating] = useState<{
+    overall: number;
+    validate: { score: number; feedback: string };
+    empathise: { score: number; feedback: string };
+    resolve: { score: number; feedback: string };
+    assure: { score: number; feedback: string };
+    keyStrengths: string[];
+    criticalIssues: string[];
+  } | null>(null);
+  const [isRating, setIsRating] = useState(false);
+  const [localGeneratedIds, setLocalGeneratedIds] = useState<Set<string>>(new Set());
+
+  const rateOwnerResponse = async (reviewId: string) => {
+    if (!tenantId) return;
+    setIsRating(true);
+    try {
+      const res = await fetch('/api/portal/reviews/rate-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, tenantId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVeraRating(data);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setIsRating(false);
+    }
+  };
 
   const loadExistingResponse = async (reviewId: string) => {
     if (!tenantId) return;
@@ -760,6 +792,11 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
                       <MessageSquareReply className="h-3 w-3" />
                     </span>
                   )}
+                  {(review.hasGeneratedResponse || localGeneratedIds.has(review.id)) && (
+                    <span className="inline-flex items-center text-purple-500" title="AI response generated">
+                      <Sparkles className="h-3 w-3" />
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] text-gray-400">
@@ -773,6 +810,7 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
                       setSelectedReview(review);
                       setGeneratedResponse(null);
                       setCopied(false);
+                      setVeraRating(null);
                       loadExistingResponse(review.id);
                     }}
                     title="View full review"
@@ -807,6 +845,7 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
           setSelectedReview(null);
           setGeneratedResponse(null);
           setCopied(false);
+          setVeraRating(null);
         }
       }}>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
@@ -847,12 +886,84 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
             )}
             {selectedReview?.responseText && (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">Owner Response</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-gray-500">Owner Response</p>
+                  {selectedReview.id && tenantId && !veraRating && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[11px] gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 px-2"
+                      onClick={() => rateOwnerResponse(selectedReview.id)}
+                      disabled={isRating}
+                    >
+                      {isRating ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Gauge className="h-3 w-3" />
+                      )}
+                      Rate My Response
+                    </Button>
+                  )}
+                </div>
                 <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-400">
                   <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {selectedReview.responseText}
                   </p>
                 </div>
+                {veraRating && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+                        <Gauge className="h-3.5 w-3.5" />
+                        VERA Score
+                      </p>
+                      <span className={`text-lg font-bold ${
+                        veraRating.overall >= 7 ? 'text-green-600' : veraRating.overall >= 4 ? 'text-amber-600' : 'text-red-600'
+                      }`}>
+                        {veraRating.overall}/10
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { key: 'validate', label: 'Validate', letter: 'V' },
+                        { key: 'empathise', label: 'Empathise', letter: 'E' },
+                        { key: 'resolve', label: 'Resolve', letter: 'R' },
+                        { key: 'assure', label: 'Assure', letter: 'A' },
+                      ] as const).map(({ key, label, letter }) => {
+                        const dim = veraRating[key];
+                        return (
+                          <div key={key} className="bg-white rounded p-2 border border-amber-100">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-bold text-amber-700">{letter} — {label}</span>
+                              <span className={`text-xs font-bold ${
+                                dim.score >= 7 ? 'text-green-600' : dim.score >= 4 ? 'text-amber-600' : 'text-red-600'
+                              }`}>{dim.score}/10</span>
+                            </div>
+                            <p className="text-[11px] text-gray-600 leading-tight">{dim.feedback}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {veraRating.keyStrengths.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {veraRating.keyStrengths.map((s, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 rounded-full px-2 py-0.5">
+                            <ThumbsUp className="h-2.5 w-2.5" />{s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {veraRating.criticalIssues.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {veraRating.criticalIssues.map((s, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 rounded-full px-2 py-0.5">
+                            <ThumbsDown className="h-2.5 w-2.5" />{s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -883,6 +994,7 @@ export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
                         if (res.ok) {
                           const data = await res.json();
                           setGeneratedResponse(data.response);
+                          setLocalGeneratedIds(prev => new Set(prev).add(selectedReview.id));
                         } else {
                           const err = await res.json();
                           console.error('Generate response error:', err);

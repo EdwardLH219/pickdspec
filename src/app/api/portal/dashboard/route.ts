@@ -278,8 +278,8 @@ export async function GET(request: NextRequest) {
         rating: true,
         reviewDate: true,
         authorName: true,
-        sourceType: true, // Review's own source type (for mixed-source imports)
-        responseText: true, // Owner response
+        sourceType: true,
+        responseText: true,
         connector: {
           select: { sourceType: true },
         },
@@ -289,6 +289,7 @@ export async function GET(request: NextRequest) {
             sentiment: true,
           },
         },
+        _count: { select: { generatedResponses: true } },
       },
     });
 
@@ -301,6 +302,7 @@ export async function GET(request: NextRequest) {
       authorName: review.authorName || 'Anonymous',
       sourceType: review.sourceType || review.connector?.sourceType || null,
       responseText: review.responseText ? sanitizeReviewContent(review.responseText) : null,
+      hasGeneratedResponse: review._count.generatedResponses > 0,
       themes: review.reviewThemes
         .filter(rt => rt.sentiment === 'NEGATIVE')
         .map(rt => rt.theme.name)
