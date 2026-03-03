@@ -950,10 +950,34 @@ export class OutscraperConnector extends BaseConnector {
   }
 }
 
-// Register the connector
+// Register the connector for all source types that use the same JSON format
 registerConnector(SourceType.GOOGLE_OUTSCRAPER, {
   displayName: 'Google Reviews (API)',
   description: 'Import reviews from JSON export (supports Google & Booking.com, multiple formats)',
+  supportsAutoSync: false,
+  requiresUpload: true,
+  factory: (connectorId, config) => new OutscraperConnector(connectorId, config),
+});
+
+registerConnector(SourceType.FACEBOOK, {
+  displayName: 'Facebook',
+  description: 'Import reviews from Facebook Page (JSON format)',
+  supportsAutoSync: false,
+  requiresUpload: true,
+  factory: (connectorId, config) => new OutscraperConnector(connectorId, config),
+});
+
+registerConnector(SourceType.TRIPADVISOR, {
+  displayName: 'TripAdvisor',
+  description: 'Import reviews from TripAdvisor (JSON format)',
+  supportsAutoSync: false,
+  requiresUpload: true,
+  factory: (connectorId, config) => new OutscraperConnector(connectorId, config),
+});
+
+registerConnector(SourceType.BOOKING, {
+  displayName: 'Booking.com',
+  description: 'Import reviews from Booking.com (JSON format)',
   supportsAutoSync: false,
   requiresUpload: true,
   factory: (connectorId, config) => new OutscraperConnector(connectorId, config),
