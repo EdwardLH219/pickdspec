@@ -163,29 +163,69 @@ export async function POST(request: NextRequest) {
 
     const client = new OpenAI({ apiKey });
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-5-mini',
-      messages: [
-        { role: 'system', content: VERA_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      max_completion_tokens: 500,
-    });
+    console.log('[Generate Response] Calling GPT-5-mini for review:', reviewId);
 
-    const generatedResponse = response.choices[0]?.message?.content?.trim();
+    const models = ['gpt-5-mini', 'gpt-4o-mini'] as const;
+    let generatedResponse: string | null = null;
+    let usedModel = models[0];
+    let usage: unknown = null;
+
+    for (const model of models) {
+      usedModel = model;
+      console.log(`[Generate Response] Trying ${model} for review:`, reviewId);
+
+      try {
+        const createParams: Record<string, unknown> = {
+          model,
+          messages: [
+            { role: 'system', content: VERA_SYSTEM_PROMPT },
+            { role: 'user', content: userPrompt },
+          ],
+        };
+
+        if (model === 'gpt-5-mini') {
+          createParams.max_completion_tokens = 2000;
+        } else {
+          createParams.max_tokens = 500;
+          createParams.temperature = 0.7;
+        }
+
+        const response = await client.chat.completions.create(createParams as Parameters<typeof client.chat.completions.create>[0]);
+
+        console.log(`[Generate Response] ${model} finish reason:`, response.choices[0]?.finish_reason);
+        console.log(`[Generate Response] ${model} usage:`, JSON.stringify(response.usage));
+
+        const content = response.choices[0]?.message?.content?.trim();
+        usage = response.usage;
+
+        if (content && content.length > 10) {
+          generatedResponse = content;
+          break;
+        }
+
+        console.warn(`[Generate Response] ${model} returned empty/short content, trying next model...`);
+      } catch (aiError) {
+        console.error(`[Generate Response] ${model} error:`, aiError);
+        if (model === models[models.length - 1]) {
+          const aiMessage = aiError instanceof Error ? aiError.message : 'AI service error';
+          return NextResponse.json({ error: `AI service error: ${aiMessage}` }, { status: 502 });
+        }
+      }
+    }
 
     if (!generatedResponse) {
-      return NextResponse.json({ error: 'Failed to generate response' }, { status: 500 });
+      console.error('[Generate Response] All models returned empty responses');
+      return NextResponse.json({ error: 'AI returned an empty response. Please try again.' }, { status: 500 });
     }
 
     return NextResponse.json({
       response: generatedResponse,
-      model: 'gpt-5-mini',
+      model: usedModel,
       framework: 'VERA',
-      tokensUsed: response.usage?.total_tokens ?? 0,
+      tokensUsed: (usage as { total_tokens?: number })?.total_tokens ?? 0,
     });
   } catch (error) {
-    console.error('Generate response error:', error);
+    console.error('[Generate Response] Unexpected error:', error);
     const message = error instanceof Error ? error.message : 'Failed to generate response';
     return NextResponse.json({ error: message }, { status: 500 });
   }
