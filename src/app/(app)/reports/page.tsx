@@ -49,6 +49,10 @@ import {
   Clock,
   Calendar,
   MessageSquareReply,
+  Sparkles,
+  Copy,
+  Check,
+  Loader2,
 } from "lucide-react";
 
 // Format source type for display
@@ -145,6 +149,9 @@ export default function ReportsPage() {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [reviewDetailOpen, setReviewDetailOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [generatedResponse, setGeneratedResponse] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Initialize filters from URL params
   useEffect(() => {
@@ -964,7 +971,13 @@ export default function ReportsPage() {
       </Tabs>
 
       {/* Review Detail Dialog */}
-      <Dialog open={reviewDetailOpen} onOpenChange={setReviewDetailOpen}>
+      <Dialog open={reviewDetailOpen} onOpenChange={(open) => {
+        setReviewDetailOpen(open);
+        if (!open) {
+          setGeneratedResponse(null);
+          setCopied(false);
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Review Details</DialogTitle>
@@ -1024,6 +1037,103 @@ export default function ReportsPage() {
                 <span>💬 {selectedReview.repliesCount} replies</span>
                 <span>✓ {selectedReview.helpfulCount} helpful</span>
               </div>
+
+              {/* Generate Response Section */}
+              {selectedReview.rating !== null && selectedReview.rating <= 3 && selectedTenantId && (
+                <div className="pt-2 border-t">
+                  {!generatedResponse ? (
+                    <Button
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={async () => {
+                        setIsGenerating(true);
+                        try {
+                          const res = await fetch('/api/portal/reviews/generate-response', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              reviewId: selectedReview.id,
+                              tenantId: selectedTenantId,
+                            }),
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            setGeneratedResponse(data.response);
+                          } else {
+                            const err = await res.json();
+                            toast.error(err.error || 'Failed to generate response');
+                          }
+                        } catch {
+                          toast.error('Failed to generate response');
+                        } finally {
+                          setIsGenerating(false);
+                        }
+                      }}
+                      disabled={isGenerating}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating VERA Response...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          Generate Response
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3 text-purple-500" />
+                          AI-Generated Response (VERA Framework)
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => {
+                            navigator.clipboard.writeText(generatedResponse);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="h-3 w-3 text-green-600" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              Copy
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <div className="bg-purple-50 dark:bg-purple-950 rounded-lg p-4 border-l-4 border-purple-400">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {generatedResponse}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 text-xs"
+                        onClick={() => {
+                          setGeneratedResponse(null);
+                          setCopied(false);
+                        }}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Regenerate
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedReview.externalUrl && (
                 <Button variant="outline" asChild>

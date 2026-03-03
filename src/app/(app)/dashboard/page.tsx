@@ -529,7 +529,7 @@ export default function DashboardPage() {
             </div>
             {/* Worst Recent Reviews */}
             <div className="lg:col-span-1">
-              <WorstReviewsCard reviews={data.worstReviews ?? []} />
+              <WorstReviewsCard reviews={data.worstReviews ?? []} tenantId={selectedTenantId ?? undefined} />
             </div>
           </div>
 

@@ -39,7 +39,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Eye, MessageSquareReply } from 'lucide-react';
+import { Eye, MessageSquareReply, Sparkles, Copy, Check, Loader2 } from 'lucide-react';
 
 // Color palette
 const COLORS = {
@@ -640,10 +640,14 @@ interface WorstReview {
 
 interface WorstReviewsCardProps {
   reviews: WorstReview[];
+  tenantId?: string;
 }
 
-export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
+export function WorstReviewsCard({ reviews, tenantId }: WorstReviewsCardProps) {
   const [selectedReview, setSelectedReview] = useState<WorstReview | null>(null);
+  const [generatedResponse, setGeneratedResponse] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const formatDate = (date: Date | string | null) => {
     if (!date) return '';
@@ -774,7 +778,13 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
       </Card>
 
       {/* Review Detail Modal */}
-      <Dialog open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
+      <Dialog open={!!selectedReview} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedReview(null);
+          setGeneratedResponse(null);
+          setCopied(false);
+        }
+      }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -819,6 +829,104 @@ export function WorstReviewsCard({ reviews }: WorstReviewsCardProps) {
                     {selectedReview.responseText}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Generate Response Section */}
+            {selectedReview && selectedReview.rating !== null && selectedReview.rating <= 3 && tenantId && (
+              <div className="pt-2 border-t">
+                {!generatedResponse ? (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={async () => {
+                      if (!selectedReview) return;
+                      setIsGenerating(true);
+                      try {
+                        const res = await fetch('/api/portal/reviews/generate-response', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            reviewId: selectedReview.id,
+                            tenantId,
+                          }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setGeneratedResponse(data.response);
+                        } else {
+                          const err = await res.json();
+                          console.error('Generate response error:', err);
+                        }
+                      } catch (err) {
+                        console.error('Generate response error:', err);
+                      } finally {
+                        setIsGenerating(false);
+                      }
+                    }}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating VERA Response...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Generate Response
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3 text-purple-500" />
+                        AI-Generated Response (VERA Framework)
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedResponse);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="h-3 w-3 text-green-600" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-400">
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {generatedResponse}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2 text-xs"
+                      onClick={() => {
+                        setGeneratedResponse(null);
+                        setCopied(false);
+                      }}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Regenerate
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
