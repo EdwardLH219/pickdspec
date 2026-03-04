@@ -56,6 +56,10 @@ import {
   Gauge,
   ThumbsUp,
   ThumbsDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 // Format source type for display
@@ -145,6 +149,8 @@ export default function ReportsPage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [totalReviews, setTotalReviews] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sentimentFilter, setSentimentFilter] = useState("all");
@@ -248,9 +254,12 @@ export default function ReportsPage() {
     sentiment: string;
     search: string;
     themeId: string | null;
+    page?: number;
   }) => {
     setReviewsLoading(true);
     setReviewsError(null);
+
+    const page = filters.page ?? 1;
 
     try {
       const params = new URLSearchParams({ tenantId: filters.tenantId });
@@ -258,6 +267,9 @@ export default function ReportsPage() {
       if (filters.sentiment !== "all") params.set("sentiment", filters.sentiment);
       if (filters.search) params.set("search", filters.search);
       if (filters.themeId) params.set("themeId", filters.themeId);
+
+      params.set("limit", String(pageSize));
+      params.set("offset", String((page - 1) * pageSize));
 
       const { start, end } = getDateRange();
       params.set("dateFrom", start.toISOString());
@@ -423,12 +435,14 @@ export default function ReportsPage() {
       }
     }
 
+    setCurrentPage(1);
     fetchReviews({
       tenantId: selectedTenantId,
       source: sourceFilter,
       sentiment: effectiveSentiment,
       search: searchQuery,
       themeId: effectiveTheme,
+      page: 1,
     });
     fetchThemes();
     fetchSummaries();
@@ -479,14 +493,18 @@ export default function ReportsPage() {
     sentiment: string;
     search: string;
     themeId: string | null;
+    page: number;
   }>) => {
     if (!selectedTenantId) return;
+    const page = overrides?.page ?? 1;
+    if (!overrides?.page) setCurrentPage(1);
     fetchReviews({
       tenantId: selectedTenantId,
       source: overrides?.source ?? sourceFilter,
       sentiment: overrides?.sentiment ?? sentimentFilter,
       search: overrides?.search ?? searchQuery,
       themeId: overrides?.themeId !== undefined ? overrides.themeId : themeFilter,
+      page,
     });
   };
 
@@ -496,8 +514,8 @@ export default function ReportsPage() {
     setSentimentFilter("all");
     setThemeFilter(null);
     setThemeName(null);
+    setCurrentPage(1);
     window.history.replaceState({}, '', '/reports');
-    // Fetch with cleared values explicitly
     if (selectedTenantId) {
       fetchReviews({
         tenantId: selectedTenantId,
@@ -505,6 +523,7 @@ export default function ReportsPage() {
         sentiment: "all",
         search: "",
         themeId: null,
+        page: 1,
       });
     }
   };
@@ -630,6 +649,7 @@ export default function ReportsPage() {
                       setThemeFilter(null);
                       setThemeName(null);
                       setSentimentFilter('all');
+                      setCurrentPage(1);
                       window.history.replaceState({}, '', '/reports');
                       if (selectedTenantId) {
                         fetchReviews({
@@ -638,6 +658,7 @@ export default function ReportsPage() {
                           sentiment: "all",
                           search: searchQuery,
                           themeId: null,
+                          page: 1,
                         });
                       }
                     }}
@@ -827,6 +848,56 @@ export default function ReportsPage() {
                   ))}
                 </TableBody>
               </Table>
+
+              {/* Pagination */}
+              {totalReviews > pageSize && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, totalReviews)} of {totalReviews}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage === 1}
+                      onClick={() => { setCurrentPage(1); triggerFetch({ page: 1 }); }}
+                    >
+                      <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage === 1}
+                      onClick={() => { const p = currentPage - 1; setCurrentPage(p); triggerFetch({ page: p }); }}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="px-3 text-sm font-medium">
+                      Page {currentPage} of {Math.ceil(totalReviews / pageSize)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage >= Math.ceil(totalReviews / pageSize)}
+                      onClick={() => { const p = currentPage + 1; setCurrentPage(p); triggerFetch({ page: p }); }}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={currentPage >= Math.ceil(totalReviews / pageSize)}
+                      onClick={() => { const p = Math.ceil(totalReviews / pageSize); setCurrentPage(p); triggerFetch({ page: p }); }}
+                    >
+                      <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           )}
         </TabsContent>
